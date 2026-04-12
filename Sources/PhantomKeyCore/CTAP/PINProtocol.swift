@@ -26,8 +26,7 @@ public struct PINProtocolV1: PINUVAuthProtocol, Sendable {
 
     public func verify(key: Data, message: Data, signature: Data) -> Bool {
         let expected = authenticate(key: key, message: message)
-        guard expected.count == signature.count else { return false }
-        return expected == signature
+        return constantTimeEqual(expected, signature)
     }
 
     public func deriveSharedSecret(ecdh sharedPoint: Data) -> Data {
@@ -49,8 +48,7 @@ public struct PINProtocolV2: PINUVAuthProtocol, Sendable {
 
     public func verify(key: Data, message: Data, signature: Data) -> Bool {
         let expected = authenticate(key: key, message: message)
-        guard expected.count == signature.count else { return false }
-        return expected == signature
+        return constantTimeEqual(expected, signature)
     }
 
     public func deriveKeys(sharedSecret: Data) -> (encKey: Data, hmacKey: Data) {

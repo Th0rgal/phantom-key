@@ -263,6 +263,90 @@ struct HMACSecretTests {
             sharedSecret: sharedSecret, pinProtocol: .v2)
         #expect(valid == true)
     }
+
+    @Test("AES-CBC encrypt/decrypt roundtrip for single salt")
+    func aesCBCRoundtripSingleSalt() throws {
+        let key = Data(repeating: 0xAA, count: 32)
+        let iv = Data(repeating: 0x11, count: 16)
+        let plaintext = Data(repeating: 0x42, count: 32) // one 32-byte salt
+
+        let ciphertext = try aesCBCEncrypt(key: key, iv: iv, plaintext: plaintext)
+        #expect(ciphertext.count == 32)
+        #expect(ciphertext != plaintext)
+
+        let decrypted = try aesCBCDecrypt(key: key, iv: iv, ciphertext: ciphertext)
+        #expect(decrypted == plaintext)
+    }
+
+    @Test("AES-CBC encrypt/decrypt roundtrip for two salts")
+    func aesCBCRoundtripTwoSalts() throws {
+        let key = Data(repeating: 0xBB, count: 32)
+        let iv = Data(repeating: 0x22, count: 16)
+        var plaintext = Data(repeating: 0x01, count: 32)
+        plaintext.append(Data(repeating: 0x02, count: 32))
+
+        let ciphertext = try aesCBCEncrypt(key: key, iv: iv, plaintext: plaintext)
+        #expect(ciphertext.count == 64)
+
+        let decrypted = try aesCBCDecrypt(key: key, iv: iv, ciphertext: ciphertext)
+        #expect(decrypted == plaintext)
+    }
+
+    @Test("Salt encrypt/decrypt end-to-end via HMACSecretProcessor")
+    func saltEncryptDecryptEndToEnd() throws {
+        let sharedSecret = Data(repeating: 0xCC, count: 32)
+        let salt1 = Data(repeating: 0x11, count: 32)
+        let salt2 = Data(repeating: 0x22, count: 32)
+
+        // Encrypt salts as a platform would: IV + AES-CBC(salt1 || salt2)
+        var iv = [UInt8](repeating: 0, count: 16)
+        for i in 0..<16 { iv[i] = UInt8.random(in: 0...255) }
+        let ivData = Data(iv)
+        let plainSalts = salt1 + salt2
+        let encrypted = try aesCBCEncrypt(key: sharedSecret, iv: ivData, plaintext: plainSalts)
+        let saltEnc = ivData + encrypted // 16 IV + 64 ciphertext = 80 bytes
+
+        // Decrypt via HMACSecretProcessor
+        let (decSalt1, decSalt2) = try processor.decryptSalts(
+            saltEnc: saltEnc, sharedSecret: sharedSecret, pinProtocol: .v1)
+        #expect(decSalt1 == salt1)
+        #expect(decSalt2 == salt2)
+    }
+
+    @Test("HMAC output encrypt/decrypt roundtrip")
+    func hmacOutputEncryptDecrypt() throws {
+        let sharedSecret = Data(repeating: 0xDD, count: 32)
+        let outputs = Data(repeating: 0xAA, count: 32) // single HMAC output
+
+        let encrypted = try processor.encryptOutputs(outputs: outputs, sharedSecret: sharedSecret)
+        // encrypted = IV (16) + ciphertext (32)
+        #expect(encrypted.count == 48)
+
+        let iv = encrypted.prefix(16)
+        let ciphertext = Data(encrypted.suffix(from: 16))
+        let decrypted = try aesCBCDecrypt(key: sharedSecret, iv: Data(iv), ciphertext: ciphertext)
+        #expect(decrypted == outputs)
+    }
+
+    @Test("AES-CBC rejects invalid key length")
+    func aesCBCInvalidKeyLength() {
+        let shortKey = Data(repeating: 0, count: 16)
+        let iv = Data(repeating: 0, count: 16)
+        let plaintext = Data(repeating: 0, count: 16)
+        #expect(throws: HMACSecretError.self) {
+            try aesCBCEncrypt(key: shortKey, iv: iv, plaintext: plaintext)
+        }
+    }
+
+    @Test("AES-CBC rejects non-block-aligned plaintext")
+    func aesCBCNonAligned() {
+        let key = Data(repeating: 0, count: 32)
+        let iv = Data(repeating: 0, count: 16)
+        let plaintext = Data(repeating: 0, count: 15) // not a multiple of 16
+        #expect(throws: HMACSecretError.self) {
+            try aesCBCEncrypt(key: key, iv: iv, plaintext: plaintext)
+        }
+    }
 }
 
 // MARK: - Large Blob Storage Tests

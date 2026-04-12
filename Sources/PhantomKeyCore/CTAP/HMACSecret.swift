@@ -71,9 +71,9 @@ public struct HMACSecretProcessor: Sendable {
 
         switch pinProtocol {
         case .v1:
-            return expected.prefix(16) == saltAuth
+            return constantTimeEqual(expected.prefix(16), saltAuth)
         case .v2:
-            return expected == saltAuth
+            return constantTimeEqual(expected, saltAuth)
         }
     }
 
@@ -91,30 +91,39 @@ public struct HMACSecretProcessor: Sendable {
     }
 }
 
-// MARK: - AES-CBC (minimal implementation for PIN protocol compatibility)
+// MARK: - AES-CBC via CommonCrypto (correct implementation for PIN protocol)
+
+#if canImport(CommonCrypto)
+import CommonCrypto
 
 /// AES-256-CBC encryption. Plaintext must be a multiple of 16 bytes (no padding applied).
 func aesCBCEncrypt(key: Data, iv: Data, plaintext: Data) throws -> Data {
     guard key.count == 32, iv.count == 16, plaintext.count % 16 == 0 else {
         throw HMACSecretError.invalidInput
     }
-    // XOR-based CBC using AES-GCM as a block cipher (encrypt single blocks with zero-auth)
-    var result = Data()
-    var previousBlock = iv
-    for blockStart in stride(from: 0, to: plaintext.count, by: 16) {
-        let block = plaintext[blockStart..<(blockStart + 16)]
-        var xored = Data(count: 16)
-        for i in 0..<16 {
-            xored[i] = block[block.startIndex + i] ^ previousBlock[previousBlock.startIndex + i]
+    let outputSize = plaintext.count
+    var result = Data(count: outputSize)
+    var numBytesEncrypted: size_t = 0
+    let status = result.withUnsafeMutableBytes { resultPtr in
+        plaintext.withUnsafeBytes { plaintextPtr in
+            key.withUnsafeBytes { keyPtr in
+                iv.withUnsafeBytes { ivPtr in
+                    CCCrypt(
+                        CCOperation(kCCEncrypt),
+                        CCAlgorithm(kCCAlgorithmAES),
+                        CCOptions(0),
+                        keyPtr.baseAddress, key.count,
+                        ivPtr.baseAddress,
+                        plaintextPtr.baseAddress, plaintext.count,
+                        resultPtr.baseAddress, outputSize,
+                        &numBytesEncrypted
+                    )
+                }
+            }
         }
-        // Use AES in a simple way: encrypt with a 12-byte nonce of zeros and extract ciphertext
-        let nonce = try AES.GCM.Nonce(data: Data(repeating: 0, count: 12))
-        let sealed = try AES.GCM.seal(xored, using: SymmetricKey(data: key), nonce: nonce)
-        let encrypted = Data(sealed.ciphertext.prefix(16))
-        result.append(encrypted)
-        previousBlock = encrypted
     }
-    return result
+    guard status == kCCSuccess else { throw HMACSecretError.invalidInput }
+    return Data(result.prefix(numBytesEncrypted))
 }
 
 /// AES-256-CBC decryption. Ciphertext must be a multiple of 16 bytes.
@@ -122,25 +131,57 @@ func aesCBCDecrypt(key: Data, iv: Data, ciphertext: Data) throws -> Data {
     guard key.count == 32, iv.count == 16, ciphertext.count % 16 == 0 else {
         throw HMACSecretError.invalidInput
     }
-    var result = Data()
-    var previousBlock = iv
-    for blockStart in stride(from: 0, to: ciphertext.count, by: 16) {
-        let block = ciphertext[blockStart..<(blockStart + 16)]
-        let nonce = try AES.GCM.Nonce(data: Data(repeating: 0, count: 12))
-        let sealed = try AES.GCM.seal(Data(block), using: SymmetricKey(data: key), nonce: nonce)
-        let decrypted = Data(sealed.ciphertext.prefix(16))
-        var xored = Data(count: 16)
-        for i in 0..<16 {
-            xored[i] = decrypted[i] ^ previousBlock[previousBlock.startIndex + i]
+    let outputSize = ciphertext.count
+    var result = Data(count: outputSize)
+    var numBytesDecrypted: size_t = 0
+    let status = result.withUnsafeMutableBytes { resultPtr in
+        ciphertext.withUnsafeBytes { ciphertextPtr in
+            key.withUnsafeBytes { keyPtr in
+                iv.withUnsafeBytes { ivPtr in
+                    CCCrypt(
+                        CCOperation(kCCDecrypt),
+                        CCAlgorithm(kCCAlgorithmAES),
+                        CCOptions(0),
+                        keyPtr.baseAddress, key.count,
+                        ivPtr.baseAddress,
+                        ciphertextPtr.baseAddress, ciphertext.count,
+                        resultPtr.baseAddress, outputSize,
+                        &numBytesDecrypted
+                    )
+                }
+            }
         }
-        result.append(xored)
-        previousBlock = Data(block)
     }
-    return result
+    guard status == kCCSuccess else { throw HMACSecretError.invalidInput }
+    return Data(result.prefix(numBytesDecrypted))
 }
+#else
+// Fallback for non-Apple platforms.
+// TODO: Use _CryptoExtras AES._CBC for Linux support.
+func aesCBCEncrypt(key: Data, iv: Data, plaintext: Data) throws -> Data {
+    fatalError("AES-CBC requires CommonCrypto (Apple platforms)")
+}
+
+func aesCBCDecrypt(key: Data, iv: Data, ciphertext: Data) throws -> Data {
+    fatalError("AES-CBC requires CommonCrypto (Apple platforms)")
+}
+#endif
 
 public enum HMACSecretError: Error, Sendable {
     case invalidSaltLength
     case invalidInput
     case verificationFailed
+}
+
+// MARK: - Constant-time comparison
+
+/// Compares two byte sequences in constant time to prevent timing side-channel attacks.
+/// Returns true only if both sequences have equal length and identical contents.
+func constantTimeEqual<L: DataProtocol, R: DataProtocol>(_ lhs: L, _ rhs: R) -> Bool {
+    guard lhs.count == rhs.count else { return false }
+    var diff: UInt8 = 0
+    for (a, b) in zip(lhs, rhs) {
+        diff |= a ^ b
+    }
+    return diff == 0
 }
