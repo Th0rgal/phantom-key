@@ -41,6 +41,8 @@ public struct PairedDevice: Sendable, Codable {
     }
 }
 
+/// Pairing initiator (Mac side). Generates a static X25519 key pair for Noise NK.
+/// The public key is shared via QR code; the private key is stored for future sessions.
 public struct PairingInitiator: Sendable {
     private let keys: PairingKeys
     private let pairingCode: String
@@ -73,17 +75,53 @@ public struct PairingInitiator: Sendable {
         )
     }
 
+    /// Start a Noise NK handshake as the initiator.
+    /// The responder's static public key comes from the paired device record.
+    public func beginNoiseHandshake(
+        responderStaticPublic: Data
+    ) throws -> (message: Data, pending: PendingInitiator) {
+        let rs = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: responderStaticPublic)
+
+        var ss = SymmetricState(protocolName: NoiseNK.protocolName)
+        ss.mixHash(responderStaticPublic)
+
+        let e = Curve25519.KeyAgreement.PrivateKey()
+        let ephemeralPublic = e.publicKey.rawRepresentation
+        ss.mixHash(ephemeralPublic)
+
+        let sharedES = try e.sharedSecretFromKeyAgreement(with: rs)
+        ss.mixKey(sharedES.withUnsafeBytes { Data($0) })
+
+        let pending = PendingInitiator(ephemeralPrivate: e, symmetricState: ss)
+        return (message: Data(ephemeralPublic), pending: pending)
+    }
+
+    /// Finalize the Noise NK handshake after receiving the responder's reply.
+    public func finalizeNoiseHandshake(
+        pending: inout PendingInitiator,
+        response: Data
+    ) throws -> (sendCipher: CipherState, receiveCipher: CipherState) {
+        try NoiseNK.initiatorFinalize(
+            pendingEphemeralPrivate: pending.ephemeralPrivate,
+            symmetricState: &pending.symmetricState,
+            responseMessage: response
+        )
+    }
+
     private func generateServiceUUID() -> String {
         let hex = (0..<4).map { _ in String(format: "%04X", UInt16.random(in: 0...UInt16.max)) }
         return "\(hex[0])\(hex[1])-\(hex[2])-\(hex[3])-AAAA-F1D0AE000000"
     }
 }
 
-public struct PairingResponder: Sendable {
+/// Pairing responder (iPhone side). The iPhone holds a static X25519 key pair.
+public struct PairingResponder: @unchecked Sendable {
     private let keys: PairingKeys
+    public let staticPrivateKey: Curve25519.KeyAgreement.PrivateKey
 
     public init() {
         self.keys = PairingKeys()
+        self.staticPrivateKey = keys.localPrivateKey
     }
 
     public var publicKeyData: Data { keys.publicKeyData }
@@ -98,5 +136,12 @@ public struct PairingResponder: Sendable {
             sharedSecret: keyData,
             serviceUUID: scannedData.serviceUUID
         )
+    }
+
+    /// Process a Noise NK handshake message from the initiator and derive cipher states.
+    public func processNoiseHandshake(
+        message: Data
+    ) throws -> (response: Data, sendCipher: CipherState, receiveCipher: CipherState) {
+        try NoiseNK.responder(staticPrivateKey: staticPrivateKey, message: message)
     }
 }

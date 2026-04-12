@@ -45,7 +45,11 @@ public enum CBORError: Error, Sendable {
 }
 
 public struct CBOREncoder: Sendable {
-    public init() {}
+    public let canonical: Bool
+
+    public init(canonical: Bool = false) {
+        self.canonical = canonical
+    }
 
     public func encode(_ value: CBORValue) -> Data {
         var data = Data()
@@ -72,8 +76,19 @@ public struct CBOREncoder: Sendable {
                 encodeValue(item, into: &data)
             }
         case .map(let pairs):
-            encodeUnsigned(majorType: 5, value: UInt64(pairs.count), into: &data)
-            for (key, val) in pairs {
+            let orderedPairs: [(CBORValue, CBORValue)]
+            if canonical {
+                orderedPairs = pairs.sorted { a, b in
+                    let keyA = CBOREncoder(canonical: false).encode(a.0)
+                    let keyB = CBOREncoder(canonical: false).encode(b.0)
+                    if keyA.count != keyB.count { return keyA.count < keyB.count }
+                    return keyA.lexicographicallyPrecedes(keyB)
+                }
+            } else {
+                orderedPairs = pairs
+            }
+            encodeUnsigned(majorType: 5, value: UInt64(orderedPairs.count), into: &data)
+            for (key, val) in orderedPairs {
                 encodeValue(key, into: &data)
                 encodeValue(val, into: &data)
             }

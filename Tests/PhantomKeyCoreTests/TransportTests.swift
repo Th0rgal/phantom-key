@@ -61,9 +61,12 @@ struct TransportTests {
     func uniqueMessageTypes() {
         let types: [MessageType] = [
             .pairingRequest, .pairingResponse, .pairingConfirm,
+            .noiseHandshakeInit, .noiseHandshakeResponse,
             .makeCredentialRequest, .makeCredentialResponse,
             .getAssertionRequest, .getAssertionResponse,
             .getInfoRequest, .getInfoResponse,
+            .credentialManagementRequest, .credentialManagementResponse,
+            .largeBlobRequest, .largeBlobResponse,
             .policyUpdate, .policyResponse,
             .keepAlive, .cancel, .error,
         ]

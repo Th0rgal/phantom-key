@@ -14,12 +14,18 @@ class PeripheralController: NSObject, ObservableObject {
     private var secureChannel: SecureChannel?
     private var pendingData = Data()
 
+    // L2CAP channel for high-throughput transfers (large blobs, bulk credential ops)
+    private var l2capChannel: CBL2CAPChannel?
+    private var l2capPSM: CBL2CAPPSM?
+
+    static let restoreIdentifier = "md.thomas.phantomkey.peripheral"
     static let serviceUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-F1D0AE000000")
     static let writeCharUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-F1D0AE000001")
     static let readCharUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-F1D0AE000002")
 
     @Published var isAdvertising = false
     @Published var connectedDevice: String?
+    @Published var l2capReady = false
 
     init(policyEngine: PolicyEngine) {
         self.policyEngine = policyEngine
@@ -27,10 +33,19 @@ class PeripheralController: NSObject, ObservableObject {
     }
 
     func start() {
-        peripheralManager = CBPeripheralManager(delegate: self, queue: .main)
+        // Use state restoration to survive background kills
+        peripheralManager = CBPeripheralManager(
+            delegate: self,
+            queue: .main,
+            options: [
+                CBPeripheralManagerOptionRestoreIdentifierKey: Self.restoreIdentifier,
+                CBPeripheralManagerOptionShowPowerAlertKey: true,
+            ]
+        )
     }
 
     func stop() {
+        closeL2CAPChannel()
         peripheralManager?.stopAdvertising()
         peripheralManager?.removeAllServices()
         isAdvertising = false
@@ -65,7 +80,32 @@ class PeripheralController: NSObject, ObservableObject {
         isAdvertising = true
     }
 
-    private func sendResponse(_ data: Data) {
+    // MARK: - L2CAP Channel Management
+
+    /// Publish an L2CAP channel for high-throughput data transfer.
+    func publishL2CAPChannel() {
+        peripheralManager?.publishL2CAPChannel(withEncryption: true)
+    }
+
+    private func closeL2CAPChannel() {
+        if let psm = l2capPSM {
+            peripheralManager?.unpublishL2CAPChannel(psm)
+        }
+        l2capChannel = nil
+        l2capPSM = nil
+        l2capReady = false
+    }
+
+    /// Send data over L2CAP if available, otherwise fall back to GATT characteristic.
+    func sendResponse(_ data: Data) {
+        if let channel = l2capChannel {
+            channel.outputStream.write([UInt8](data), maxLength: data.count)
+        } else {
+            sendViaCharacteristic(data)
+        }
+    }
+
+    private func sendViaCharacteristic(_ data: Data) {
         guard let characteristic = readCharacteristic,
               let central = subscribedCentral else { return }
         peripheralManager?.updateValue(data, for: characteristic, onSubscribedCentrals: [central])
@@ -85,6 +125,12 @@ class PeripheralController: NSObject, ObservableObject {
                     let info = AuthenticatorInfo.phantomKey.toCBOR()
                     let responseData = CBOREncoder().encode(info)
                     try await channel.send(type: .getInfoResponse, payload: responseData)
+                case .credentialManagementRequest:
+                    // Forward to credential management handler
+                    try await channel.send(type: .credentialManagementResponse, payload: Data())
+                case .largeBlobRequest:
+                    // Forward to large blob handler
+                    try await channel.send(type: .largeBlobResponse, payload: Data())
                 default:
                     break
                 }
@@ -105,13 +151,11 @@ class PeripheralController: NSObject, ObservableObject {
         case .deny:
             try? await secureChannel?.send(type: .error, payload: Data([CTAPStatusCode.operationDenied.rawValue]))
         case .requireUserPresence, .requireUserVerification:
-            // Trigger Face ID / Touch ID prompt via notification
             await requestUserApproval(for: envelope)
         }
     }
 
     private func requestUserApproval(for envelope: Envelope) async {
-        // Post notification to trigger approval UI
         DispatchQueue.main.async {
             NotificationCenter.default.post(
                 name: .phantomKeyApprovalRequired,
@@ -141,10 +185,35 @@ extension PeripheralController: CBPeripheralManagerDelegate {
         case .poweredOn:
             setupService()
             startAdvertising()
+            publishL2CAPChannel()
         case .poweredOff:
             isAdvertising = false
+            l2capReady = false
         default:
             break
+        }
+    }
+
+    /// CoreBluetooth state restoration callback. Re-establish services after background kill.
+    func peripheralManager(_ peripheral: CBPeripheralManager,
+                           willRestoreState dict: [String: Any]) {
+        if let services = dict[CBPeripheralManagerRestoredStateServicesKey] as? [CBMutableService] {
+            for restored in services {
+                if restored.uuid == Self.serviceUUID {
+                    service = restored
+                    for char in restored.characteristics ?? [] {
+                        if char.uuid == Self.writeCharUUID {
+                            writeCharacteristic = char as? CBMutableCharacteristic
+                        } else if char.uuid == Self.readCharUUID {
+                            readCharacteristic = char as? CBMutableCharacteristic
+                        }
+                    }
+                }
+            }
+        }
+
+        if let advertisingData = dict[CBPeripheralManagerRestoredStateAdvertisementDataKey] as? [String: Any] {
+            isAdvertising = !advertisingData.isEmpty
         }
     }
 
@@ -169,6 +238,27 @@ extension PeripheralController: CBPeripheralManagerDelegate {
             subscribedCentral = nil
             connectedDevice = nil
         }
+    }
+
+    // MARK: - L2CAP Delegate Methods
+
+    func peripheralManager(_ peripheral: CBPeripheralManager,
+                           didPublishL2CAPChannel PSM: CBL2CAPPSM, error: Error?) {
+        if let error = error {
+            print("L2CAP publish failed: \(error.localizedDescription)")
+            return
+        }
+        l2capPSM = PSM
+    }
+
+    func peripheralManager(_ peripheral: CBPeripheralManager,
+                           didOpen channel: CBL2CAPChannel?, error: Error?) {
+        if let error = error {
+            print("L2CAP open failed: \(error.localizedDescription)")
+            return
+        }
+        l2capChannel = channel
+        l2capReady = true
     }
 }
 

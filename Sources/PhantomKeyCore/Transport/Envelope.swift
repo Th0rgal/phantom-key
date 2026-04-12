@@ -10,6 +10,15 @@ public enum MessageType: UInt8, Sendable, Codable {
     case getAssertionResponse = 0x13
     case getInfoRequest = 0x14
     case getInfoResponse = 0x15
+    // CTAP 2.1 credential management
+    case credentialManagementRequest = 0x16
+    case credentialManagementResponse = 0x17
+    // CTAP 2.1 large blob
+    case largeBlobRequest = 0x18
+    case largeBlobResponse = 0x19
+    // Noise NK handshake
+    case noiseHandshakeInit = 0x04
+    case noiseHandshakeResponse = 0x05
     case policyUpdate = 0x20
     case policyResponse = 0x21
     case keepAlive = 0x30

@@ -1,6 +1,7 @@
 #if canImport(Security) && canImport(UIKit)
 import Foundation
 import Security
+import CryptoKit
 import LocalAuthentication
 import PhantomKeyCore
 
@@ -15,27 +16,13 @@ actor SecureEnclaveKeyStore: CredentialStore {
         let context = LAContext()
         context.localizedReason = "Create credential for \(credential.relyingPartyName)"
 
-        var attributes: [String: Any] = [
-            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecAttrKeySizeInBits as String: 256,
-            kSecAttrTokenID as String: kSecAttrTokenIDSecureEnclave,
-            kSecPrivateKeyAttrs as String: [
-                kSecAttrIsPermanent as String: true,
-                kSecAttrApplicationTag as String: credential.credentialId,
-                kSecAttrAccessControl as String: try createAccessControl(),
-                kSecUseAuthenticationContext as String: context,
-            ] as [String: Any],
-        ]
+        // Generate a Secure Enclave P-256 signing key using CryptoKit
+        let privateKey = try SecureEnclave.P256.Signing.PrivateKey(
+            accessControl: createAccessControl(),
+            authenticationContext: context
+        )
 
-        if let group = accessGroup {
-            attributes[kSecAttrAccessGroup as String] = group
-        }
-
-        var error: Unmanaged<CFError>?
-        guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &error) else {
-            throw KeyStoreError.keyGenerationFailed(error?.takeRetainedValue().localizedDescription ?? "Unknown")
-        }
-
+        // Store the key's data representation in Keychain for later retrieval
         let metadata = CredentialMetadata(
             credentialId: credential.credentialId,
             relyingPartyId: credential.relyingPartyId,
@@ -45,24 +32,29 @@ actor SecureEnclaveKeyStore: CredentialStore {
             userDisplayName: credential.userDisplayName,
             algorithm: credential.algorithm,
             createdAt: credential.createdAt,
-            isResident: credential.isResident
+            isResident: credential.isResident,
+            credProtect: credential.credProtect,
+            largeBlobKey: credential.largeBlobKey,
+            hmacSecret: credential.hmacSecret,
+            privateKeyDataRepresentation: privateKey.dataRepresentation
         )
 
         let data = try JSONEncoder().encode(metadata)
-        let metadataQuery: [String: Any] = [
+        var metadataQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "md.thomas.phantomkey.credentials",
             kSecAttrAccount as String: credential.credentialId.base64EncodedString(),
             kSecValueData as String: data,
         ]
 
-        let status = SecItemAdd(metadataQuery as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            SecKeyCreateRandomKey([:] as CFDictionary, nil) // cleanup attempt
-            throw KeyStoreError.metadataStoreFailed(status)
+        if let group = accessGroup {
+            metadataQuery[kSecAttrAccessGroup as String] = group
         }
 
-        _ = privateKey // key is persisted in Secure Enclave
+        let status = SecItemAdd(metadataQuery as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            throw KeyStoreError.metadataStoreFailed(status)
+        }
     }
 
     func find(relyingPartyId: String, credentialId: Data?) async throws -> [StoredCredential] {
@@ -79,12 +71,6 @@ actor SecureEnclaveKeyStore: CredentialStore {
     }
 
     func delete(credentialId: Data) async throws {
-        let keyQuery: [String: Any] = [
-            kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: credentialId,
-        ]
-        SecItemDelete(keyQuery as CFDictionary)
-
         let metaQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "md.thomas.phantomkey.credentials",
@@ -93,34 +79,70 @@ actor SecureEnclaveKeyStore: CredentialStore {
         SecItemDelete(metaQuery as CFDictionary)
     }
 
-    func sign(credentialId: Data, data: Data) async throws -> Data {
+    func enumerateRelyingParties() async throws -> [String] {
+        let allMetadata = try loadAllMetadata()
+        let rpIds = Set(allMetadata.map(\.relyingPartyId))
+        return Array(rpIds).sorted()
+    }
+
+    func countResidentCredentials() async throws -> Int {
+        let allMetadata = try loadAllMetadata()
+        return allMetadata.filter(\.isResident).count
+    }
+
+    func maxResidentCredentials() -> Int {
+        128
+    }
+
+    func update(credentialId: Data, userName: String, userDisplayName: String) async throws {
+        let account = credentialId.base64EncodedString()
         let query: [String: Any] = [
-            kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: credentialId,
-            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true,
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "md.thomas.phantomkey.credentials",
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
         ]
 
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let privateKey = item else {
+        guard status == errSecSuccess, let data = item as? Data else {
             throw KeyStoreError.keyNotFound
         }
 
-        guard let secKey = privateKey as? SecKey else {
+        var metadata = try JSONDecoder().decode(CredentialMetadata.self, from: data)
+        metadata.userName = userName
+        metadata.userDisplayName = userDisplayName
+
+        let updatedData = try JSONEncoder().encode(metadata)
+        let updateQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "md.thomas.phantomkey.credentials",
+            kSecAttrAccount as String: account,
+        ]
+        let attrs: [String: Any] = [
+            kSecValueData as String: updatedData,
+        ]
+        SecItemUpdate(updateQuery as CFDictionary, attrs as CFDictionary)
+    }
+
+    /// Sign data using the Secure Enclave P-256 key via CryptoKit.
+    func sign(credentialId: Data, data: Data) async throws -> Data {
+        let allMetadata = try loadAllMetadata()
+        guard let meta = allMetadata.first(where: { $0.credentialId == credentialId }),
+              let keyData = meta.privateKeyDataRepresentation else {
             throw KeyStoreError.keyNotFound
         }
-        var error: Unmanaged<CFError>?
-        guard let signature = SecKeyCreateSignature(
-            secKey,
-            .ecdsaSignatureMessageX962SHA256,
-            data as CFData,
-            &error
-        ) else {
-            throw KeyStoreError.signingFailed(error?.takeRetainedValue().localizedDescription ?? "Unknown")
-        }
 
-        return signature as Data
+        let context = LAContext()
+        context.localizedReason = "Authenticate with \(meta.relyingPartyName)"
+
+        let privateKey = try SecureEnclave.P256.Signing.PrivateKey(
+            dataRepresentation: keyData,
+            authenticationContext: context
+        )
+
+        let signature = try privateKey.signature(for: data)
+        return signature.derRepresentation
     }
 
     private func createAccessControl() throws -> SecAccessControl {
@@ -161,11 +183,45 @@ struct CredentialMetadata: Codable {
     let relyingPartyId: String
     let relyingPartyName: String
     let userId: Data
-    let userName: String
-    let userDisplayName: String
+    var userName: String
+    var userDisplayName: String
     let algorithm: Int
     let createdAt: Date
     let isResident: Bool
+    let credProtect: UInt8?
+    let largeBlobKey: Data?
+    let hmacSecret: Data?
+    let privateKeyDataRepresentation: Data?
+
+    init(
+        credentialId: Data,
+        relyingPartyId: String,
+        relyingPartyName: String,
+        userId: Data,
+        userName: String,
+        userDisplayName: String,
+        algorithm: Int,
+        createdAt: Date,
+        isResident: Bool,
+        credProtect: UInt8? = nil,
+        largeBlobKey: Data? = nil,
+        hmacSecret: Data? = nil,
+        privateKeyDataRepresentation: Data? = nil
+    ) {
+        self.credentialId = credentialId
+        self.relyingPartyId = relyingPartyId
+        self.relyingPartyName = relyingPartyName
+        self.userId = userId
+        self.userName = userName
+        self.userDisplayName = userDisplayName
+        self.algorithm = algorithm
+        self.createdAt = createdAt
+        self.isResident = isResident
+        self.credProtect = credProtect
+        self.largeBlobKey = largeBlobKey
+        self.hmacSecret = hmacSecret
+        self.privateKeyDataRepresentation = privateKeyDataRepresentation
+    }
 
     func toStoredCredential() -> StoredCredential {
         StoredCredential(
@@ -175,11 +231,14 @@ struct CredentialMetadata: Codable {
             userId: userId,
             userName: userName,
             userDisplayName: userDisplayName,
-            privateKeySerialized: Data(),
+            privateKeySerialized: privateKeyDataRepresentation ?? Data(),
             algorithm: algorithm,
             createdAt: createdAt,
             isResident: isResident,
-            signatureCounter: 0
+            signatureCounter: 0,
+            credProtect: credProtect,
+            largeBlobKey: largeBlobKey,
+            hmacSecret: hmacSecret
         )
     }
 }

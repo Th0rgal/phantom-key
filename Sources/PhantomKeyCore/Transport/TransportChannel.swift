@@ -1,4 +1,5 @@
 import Foundation
+import Crypto
 
 public protocol TransportChannel: Sendable {
     var isConnected: Bool { get async }
@@ -15,14 +16,26 @@ public enum TransportError: Error, Sendable {
     case peerDisconnected
 }
 
+/// Secure channel using Noise NK-derived separate send/receive CipherState objects.
+/// Each direction has its own key and counter-based nonce, preventing nonce reuse.
 public actor SecureChannel {
     private let transport: TransportChannel
-    private let encryptor: ChannelEncryptor
+    private var sendCipher: CipherState
+    private var receiveCipher: CipherState
     private var sequenceCounter: UInt32 = 0
 
+    /// Initialize with Noise-derived cipher states (preferred).
+    public init(transport: TransportChannel, sendCipher: CipherState, receiveCipher: CipherState) {
+        self.transport = transport
+        self.sendCipher = sendCipher
+        self.receiveCipher = receiveCipher
+    }
+
+    /// Initialize with a single shared key (legacy compatibility).
     public init(transport: TransportChannel, sharedKey: SymmetricKeyWrapper) {
         self.transport = transport
-        self.encryptor = ChannelEncryptor(sharedKey: sharedKey.key)
+        self.sendCipher = CipherState(key: sharedKey.key)
+        self.receiveCipher = CipherState(key: sharedKey.key)
     }
 
     public func send(type: MessageType, payload: Data) async throws {
@@ -30,13 +43,13 @@ public actor SecureChannel {
         sequenceCounter += 1
 
         let serialized = envelope.serialize()
-        let encrypted = try encryptor.encrypt(serialized)
+        let encrypted = try sendCipher.encrypt(serialized)
         try await transport.send(encrypted)
     }
 
     public func receive() async throws -> Envelope {
         let encrypted = try await transport.receive()
-        let decrypted = try encryptor.decrypt(encrypted)
+        let decrypted = try receiveCipher.decrypt(encrypted)
         return try Envelope.deserialize(decrypted)
     }
 
@@ -48,8 +61,6 @@ public actor SecureChannel {
         await transport.disconnect()
     }
 }
-
-import Crypto
 
 public struct SymmetricKeyWrapper: @unchecked Sendable {
     public let key: SymmetricKey
