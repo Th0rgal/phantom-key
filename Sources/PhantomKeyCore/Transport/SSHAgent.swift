@@ -1,0 +1,393 @@
+import Foundation
+import Crypto
+
+// MARK: - SSH Agent Protocol Constants
+
+private enum SSHAgentMessage: UInt8 {
+    case failure = 5
+    case success = 6
+    case requestIdentities = 11
+    case identitiesAnswer = 12
+    case signRequest = 13
+    case signResponse = 14
+    case addIdentity = 17
+    case removeIdentity = 18
+    case removeAllIdentities = 19
+    case lock = 22
+    case unlock = 23
+    case extensionRequest = 27
+}
+
+// MARK: - SSH Wire Format Helpers
+
+/// Builds SSH wire-format messages (length-prefixed strings, uint32, etc.)
+struct SSHWireFormat {
+    /// Encode a string (4-byte big-endian length + bytes)
+    static func encodeString(_ data: Data) -> Data {
+        var result = Data()
+        var len = UInt32(data.count).bigEndian
+        result.append(Data(bytes: &len, count: 4))
+        result.append(data)
+        return result
+    }
+
+    static func encodeString(_ str: String) -> Data {
+        encodeString(Data(str.utf8))
+    }
+
+    /// Encode a uint32 in big-endian
+    static func encodeUInt32(_ value: UInt32) -> Data {
+        var be = value.bigEndian
+        return Data(bytes: &be, count: 4)
+    }
+
+    /// Decode a string (4-byte length + bytes) from data at offset, advancing offset
+    static func decodeString(_ data: Data, offset: inout Int) -> Data? {
+        guard offset + 4 <= data.count else { return nil }
+        let len = Int(UInt32(data[offset]) << 24 | UInt32(data[offset+1]) << 16
+            | UInt32(data[offset+2]) << 8 | UInt32(data[offset+3]))
+        offset += 4
+        guard offset + len <= data.count else { return nil }
+        let result = Data(data[offset..<(offset + len)])
+        offset += len
+        return result
+    }
+
+    /// Decode a uint32 from data at offset, advancing offset
+    static func decodeUInt32(_ data: Data, offset: inout Int) -> UInt32? {
+        guard offset + 4 <= data.count else { return nil }
+        let val = UInt32(data[offset]) << 24 | UInt32(data[offset+1]) << 16
+            | UInt32(data[offset+2]) << 8 | UInt32(data[offset+3])
+        offset += 4
+        return val
+    }
+
+    /// Build the SSH public key blob for an ECDSA P-256 key.
+    /// Format: string("ecdsa-sha2-nistp256") + string("nistp256") + string(0x04 || x || y)
+    static func ecdsaPublicKeyBlob(publicKey: P256.Signing.PublicKey) -> Data {
+        var blob = Data()
+        blob.append(encodeString("ecdsa-sha2-nistp256"))
+        blob.append(encodeString("nistp256"))
+        // Uncompressed EC point: 0x04 || x || y
+        var point = Data([0x04])
+        point.append(publicKey.rawRepresentation) // rawRepresentation is x || y (64 bytes)
+        blob.append(encodeString(point))
+        return blob
+    }
+
+    /// Build the SSH signature blob for ECDSA P-256.
+    /// Format: string("ecdsa-sha2-nistp256") + string(DER-encoded r,s as SSH mpint pair)
+    static func ecdsaSignatureBlob(signature: P256.Signing.ECDSASignature) -> Data {
+        var blob = Data()
+        blob.append(encodeString("ecdsa-sha2-nistp256"))
+        // SSH encodes ECDSA sigs as: string(mpint(r) + mpint(s))
+        let (r, s) = extractRS(from: signature.derRepresentation)
+        var inner = Data()
+        inner.append(encodeMPInt(r))
+        inner.append(encodeMPInt(s))
+        blob.append(encodeString(inner))
+        return blob
+    }
+
+    /// Extract r and s from a DER-encoded ECDSA signature
+    static func extractRS(from der: Data) -> (Data, Data) {
+        // DER: 0x30 <len> 0x02 <rlen> <r> 0x02 <slen> <s>
+        var offset = 0
+        guard der.count > 6, der[0] == 0x30 else { return (Data(), Data()) }
+        offset = 2 // skip SEQUENCE tag + length
+
+        guard der[offset] == 0x02 else { return (Data(), Data()) }
+        offset += 1
+        let rLen = Int(der[offset])
+        offset += 1
+        let r = Data(der[offset..<(offset + rLen)])
+        offset += rLen
+
+        guard offset < der.count, der[offset] == 0x02 else { return (Data(), Data()) }
+        offset += 1
+        let sLen = Int(der[offset])
+        offset += 1
+        let s = Data(der[offset..<(offset + sLen)])
+
+        return (r, s)
+    }
+
+    /// Encode a big integer as SSH mpint (strip leading zeros, add 0x00 if high bit set)
+    static func encodeMPInt(_ data: Data) -> Data {
+        var trimmed = data
+        // Remove leading zeros (but keep at least one byte)
+        while trimmed.count > 1 && trimmed[trimmed.startIndex] == 0 {
+            trimmed = trimmed.dropFirst()
+        }
+        // Add leading zero if high bit is set (mpint is signed)
+        if let first = trimmed.first, first & 0x80 != 0 {
+            trimmed.insert(0x00, at: trimmed.startIndex)
+        }
+        return encodeString(trimmed)
+    }
+}
+
+// MARK: - SSH Agent Key
+
+/// An SSH agent key: an ECDSA P-256 key pair with a comment.
+public struct SSHAgentKey: Sendable {
+    public let privateKey: P256.Signing.PrivateKey
+    public let comment: String
+
+    public init(privateKey: P256.Signing.PrivateKey, comment: String) {
+        self.privateKey = privateKey
+        self.comment = comment
+    }
+
+    /// Generate a new SSH key with the given comment.
+    public static func generate(comment: String) -> SSHAgentKey {
+        SSHAgentKey(privateKey: P256.Signing.PrivateKey(), comment: comment)
+    }
+
+    /// The public key blob in SSH wire format.
+    public var publicKeyBlob: Data {
+        SSHWireFormat.ecdsaPublicKeyBlob(publicKey: privateKey.publicKey)
+    }
+
+    /// The public key in OpenSSH authorized_keys format.
+    public var authorizedKeyLine: String {
+        "ecdsa-sha2-nistp256 \(publicKeyBlob.base64EncodedString()) \(comment)"
+    }
+}
+
+// MARK: - SSH Agent
+
+/// A minimal SSH agent that handles ECDSA P-256 keys.
+/// Listens on a Unix domain socket and responds to SSH agent protocol requests.
+public actor SSHAgent {
+    private var keys: [SSHAgentKey] = []
+    private let socketPath: String
+    private var serverSocket: Int32 = -1
+    private var isRunning = false
+    private var acceptTask: Task<Void, Never>?
+
+    public init(socketPath: String) {
+        self.socketPath = socketPath
+    }
+
+    deinit {
+        // Non-isolated cleanup of the socket file
+        let path = socketPath
+        let fd = serverSocket
+        if fd >= 0 { close(fd) }
+        unlink(path)
+    }
+
+    /// Add a key to the agent.
+    public func addKey(_ key: SSHAgentKey) {
+        keys.append(key)
+    }
+
+    /// Remove all keys.
+    public func removeAllKeys() {
+        keys.removeAll()
+    }
+
+    /// Get the number of keys.
+    public var keyCount: Int { keys.count }
+
+    /// Start listening on the Unix socket.
+    public func start() throws {
+        guard !isRunning else { return }
+
+        // Remove stale socket file
+        unlink(socketPath)
+
+        // Create Unix domain socket
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { throw SSHAgentError.socketCreationFailed }
+
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let pathBytes = socketPath.utf8CString
+        let maxLen = MemoryLayout.size(ofValue: addr.sun_path)
+        withUnsafeMutableBytes(of: &addr.sun_path) { buf in
+            for i in 0..<min(pathBytes.count, maxLen) {
+                buf[i] = UInt8(bitPattern: pathBytes[i])
+            }
+        }
+
+        let bindResult = withUnsafePointer(to: &addr) { addrPtr in
+            addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+                bind(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        guard bindResult == 0 else {
+            Darwin.close(fd)
+            throw SSHAgentError.bindFailed(errno)
+        }
+
+        // Set socket permissions to owner-only
+        chmod(socketPath, 0o600)
+
+        guard listen(fd, 5) == 0 else {
+            Darwin.close(fd)
+            throw SSHAgentError.listenFailed(errno)
+        }
+
+        serverSocket = fd
+        isRunning = true
+
+        // Start accepting connections
+        acceptTask = Task { [weak self] in
+            await self?.acceptLoop()
+        }
+    }
+
+    /// Stop the agent.
+    public func stop() {
+        isRunning = false
+        acceptTask?.cancel()
+        acceptTask = nil
+        if serverSocket >= 0 {
+            Darwin.close(serverSocket)
+            serverSocket = -1
+        }
+        unlink(socketPath)
+    }
+
+    // MARK: - Accept Loop
+
+    private func acceptLoop() async {
+        let fd = serverSocket
+        // Make the socket non-blocking so we can check cancellation
+        let flags = fcntl(fd, F_GETFL, 0)
+        _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+
+        while isRunning && !Task.isCancelled {
+            var clientAddr = sockaddr_un()
+            var addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
+            let clientFD = withUnsafeMutablePointer(to: &clientAddr) { addrPtr in
+                addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+                    accept(fd, sockaddrPtr, &addrLen)
+                }
+            }
+
+            if clientFD >= 0 {
+                // Handle client in a separate task
+                let currentKeys = keys
+                Task.detached {
+                    await Self.handleClient(fd: clientFD, keys: currentKeys)
+                }
+            } else if errno == EWOULDBLOCK || errno == EAGAIN {
+                // No pending connections, sleep briefly
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            } else {
+                break
+            }
+        }
+    }
+
+    // MARK: - Client Handling
+
+    private static func handleClient(fd: Int32, keys: [SSHAgentKey]) async {
+        defer { Darwin.close(fd) }
+
+        // Set client socket to blocking for simplicity
+        let flags = fcntl(fd, F_GETFL, 0)
+        _ = fcntl(fd, F_SETFL, flags & ~O_NONBLOCK)
+
+        while true {
+            // Read 4-byte message length
+            guard let lenData = readExact(fd: fd, count: 4) else { return }
+            let msgLen = Int(UInt32(lenData[0]) << 24 | UInt32(lenData[1]) << 16
+                | UInt32(lenData[2]) << 8 | UInt32(lenData[3]))
+            guard msgLen > 0, msgLen < 256 * 1024 else { return }
+
+            // Read message body
+            guard let msgData = readExact(fd: fd, count: msgLen) else { return }
+            guard let msgType = SSHAgentMessage(rawValue: msgData[0]) else {
+                sendMessage(fd: fd, data: Data([SSHAgentMessage.failure.rawValue]))
+                continue
+            }
+
+            let payload = Data(msgData.dropFirst())
+            let response: Data
+
+            switch msgType {
+            case .requestIdentities:
+                response = handleRequestIdentities(keys: keys)
+            case .signRequest:
+                response = handleSignRequest(payload: payload, keys: keys)
+            case .removeAllIdentities:
+                response = Data([SSHAgentMessage.success.rawValue])
+            case .lock, .unlock:
+                response = Data([SSHAgentMessage.success.rawValue])
+            default:
+                response = Data([SSHAgentMessage.failure.rawValue])
+            }
+
+            sendMessage(fd: fd, data: response)
+        }
+    }
+
+    private static func handleRequestIdentities(keys: [SSHAgentKey]) -> Data {
+        var response = Data([SSHAgentMessage.identitiesAnswer.rawValue])
+        response.append(SSHWireFormat.encodeUInt32(UInt32(keys.count)))
+        for key in keys {
+            response.append(SSHWireFormat.encodeString(key.publicKeyBlob))
+            response.append(SSHWireFormat.encodeString(key.comment))
+        }
+        return response
+    }
+
+    private static func handleSignRequest(payload: Data, keys: [SSHAgentKey]) -> Data {
+        var offset = 0
+        guard let keyBlob = SSHWireFormat.decodeString(payload, offset: &offset),
+              let dataToSign = SSHWireFormat.decodeString(payload, offset: &offset) else {
+            return Data([SSHAgentMessage.failure.rawValue])
+        }
+        // flags are at offset but we ignore them for now
+        // let flags = SSHWireFormat.decodeUInt32(payload, offset: &offset) ?? 0
+
+        // Find matching key
+        guard let key = keys.first(where: { $0.publicKeyBlob == keyBlob }) else {
+            return Data([SSHAgentMessage.failure.rawValue])
+        }
+
+        // Sign the data
+        guard let signature = try? key.privateKey.signature(for: dataToSign) else {
+            return Data([SSHAgentMessage.failure.rawValue])
+        }
+
+        let sigBlob = SSHWireFormat.ecdsaSignatureBlob(signature: signature)
+        var response = Data([SSHAgentMessage.signResponse.rawValue])
+        response.append(SSHWireFormat.encodeString(sigBlob))
+        return response
+    }
+
+    // MARK: - Socket I/O
+
+    private static func readExact(fd: Int32, count: Int) -> Data? {
+        var buffer = [UInt8](repeating: 0, count: count)
+        var totalRead = 0
+        while totalRead < count {
+            let n = read(fd, &buffer[totalRead], count - totalRead)
+            if n <= 0 { return nil }
+            totalRead += n
+        }
+        return Data(buffer)
+    }
+
+    private static func sendMessage(fd: Int32, data: Data) {
+        var packet = SSHWireFormat.encodeUInt32(UInt32(data.count))
+        packet.append(data)
+        _ = packet.withUnsafeBytes { buf in
+            write(fd, buf.baseAddress!, buf.count)
+        }
+    }
+}
+
+// MARK: - Errors
+
+public enum SSHAgentError: Error, Sendable {
+    case socketCreationFailed
+    case bindFailed(Int32)
+    case listenFailed(Int32)
+    case connectionFailed
+}

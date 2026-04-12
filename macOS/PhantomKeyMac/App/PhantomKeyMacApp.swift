@@ -1,6 +1,7 @@
 #if canImport(AppKit)
 import SwiftUI
 import PhantomKeyCore
+import CoreImage.CIFilterBuiltins
 
 // Pure AppDelegate-based lifecycle — the correct pattern for menu bar (LSUIElement) apps.
 // SwiftUI's App protocol and its WindowGroup/Settings scenes don't work reliably
@@ -180,24 +181,43 @@ struct DevicesSettingsView: View {
 
 // MARK: - Pairing
 
+private func generateQRCode(from data: Data) -> NSImage? {
+    let filter = CIFilter.qrCodeGenerator()
+    filter.message = data
+    filter.correctionLevel = "M"
+    guard let ciImage = filter.outputImage else { return nil }
+    let scaled = ciImage.transformed(by: CGAffineTransform(scaleX: 8, y: 8))
+    let rep = NSCIImageRep(ciImage: scaled)
+    let nsImage = NSImage(size: rep.size)
+    nsImage.addRepresentation(rep)
+    return nsImage
+}
+
 struct PairingView: View {
-    @State private var pairingCode = ""
+    @State private var initiator: PairingInitiator?
+    @State private var qrImage: NSImage?
     @State private var isPairing = false
 
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "qrcode")
-                .font(.system(size: 120))
-                .foregroundStyle(.secondary)
+            if let qrImage {
+                Image(nsImage: qrImage)
+                    .interpolation(.none)
+                    .resizable()
+                    .frame(width: 200, height: 200)
+            } else {
+                ProgressView()
+                    .frame(width: 200, height: 200)
+            }
 
             Text("Scan with PhantomKey iOS")
                 .font(.headline)
 
-            if !pairingCode.isEmpty {
+            if let code = initiator?.displayCode {
                 Text("Confirm this code on your iPhone:")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(pairingCode)
+                Text(code)
                     .font(.system(size: 36, design: .monospaced))
                     .bold()
             }
@@ -209,7 +229,11 @@ struct PairingView: View {
         .padding(30)
         .frame(minWidth: 300)
         .onAppear {
-            pairingCode = PairingKeys.generatePairingCode()
+            let newInitiator = PairingInitiator()
+            initiator = newInitiator
+            if let payload = try? newInitiator.qrData.toQRPayload() {
+                qrImage = generateQRCode(from: payload)
+            }
         }
     }
 }
