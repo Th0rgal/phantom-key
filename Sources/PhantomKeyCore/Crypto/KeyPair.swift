@@ -13,10 +13,10 @@ public struct SoftwareKeyPair: Sendable {
     public let credentialId: Data
 
     public static func generate(algorithm: KeyAlgorithm) -> SoftwareKeyPair {
+        let credId = generateCredentialId()
         switch algorithm {
         case .es256:
             let key = P256.Signing.PrivateKey()
-            let credId = generateCredentialId()
             return SoftwareKeyPair(
                 algorithm: .es256,
                 privateKeyData: key.rawRepresentation,
@@ -25,7 +25,6 @@ public struct SoftwareKeyPair: Sendable {
             )
         case .edDSA:
             let key = Curve25519.Signing.PrivateKey()
-            let credId = generateCredentialId()
             return SoftwareKeyPair(
                 algorithm: .edDSA,
                 privateKeyData: key.rawRepresentation,
@@ -44,6 +43,18 @@ public struct SoftwareKeyPair: Sendable {
         case .edDSA:
             let key = try Curve25519.Signing.PrivateKey(rawRepresentation: privateKeyData)
             return try key.signature(for: data)
+        }
+    }
+
+    public func verify(signature: Data, for data: Data) throws -> Bool {
+        switch algorithm {
+        case .es256:
+            let key = try P256.Signing.PrivateKey(rawRepresentation: privateKeyData)
+            let sig = try P256.Signing.ECDSASignature(derRepresentation: signature)
+            return key.publicKey.isValidSignature(sig, for: data)
+        case .edDSA:
+            let key = try Curve25519.Signing.PrivateKey(rawRepresentation: privateKeyData)
+            return key.publicKey.isValidSignature(signature, for: data)
         }
     }
 
@@ -70,11 +81,11 @@ public struct SoftwareKeyPair: Sendable {
     }
 
     private static func generateCredentialId() -> Data {
-        var bytes = Data(count: 32)
+        var bytes = [UInt8](repeating: 0, count: 32)
         for i in 0..<32 {
             bytes[i] = UInt8.random(in: 0...255)
         }
-        return bytes
+        return Data(bytes)
     }
 }
 

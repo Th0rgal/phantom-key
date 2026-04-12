@@ -160,6 +160,45 @@ struct PolicyRuleTests {
     }
 }
 
+@Suite("Concurrent Policy Access")
+struct ConcurrentPolicyTests {
+    @Test("Concurrent evaluations do not crash")
+    func concurrentEvaluations() async {
+        let engine = PolicyEngine()
+        await engine.setRule(PolicyRule.autoApproveRule(for: "github.com", durationSeconds: 300))
+        await engine.recordApproval(relyingPartyId: "github.com")
+
+        await withTaskGroup(of: PolicyDecision.self) { group in
+            for i in 0..<50 {
+                let rpId = i % 2 == 0 ? "github.com" : "other.com"
+                group.addTask {
+                    await engine.evaluate(relyingPartyId: rpId, requiresUV: false)
+                }
+            }
+            for await _ in group {}
+        }
+    }
+
+    @Test("Concurrent rule mutations do not crash")
+    func concurrentMutations() async {
+        let engine = PolicyEngine()
+
+        await withTaskGroup(of: Void.self) { group in
+            for i in 0..<20 {
+                group.addTask {
+                    await engine.setRule(PolicyRule.denyRule(for: "site\(i).com"))
+                }
+                group.addTask {
+                    await engine.recordApproval(relyingPartyId: "site\(i).com")
+                }
+            }
+        }
+
+        let rules = await engine.getAllRules()
+        #expect(rules.count == 20)
+    }
+}
+
 @Suite("InMemory Policy Store")
 struct PolicyStoreTests {
     @Test("Save and load rules")

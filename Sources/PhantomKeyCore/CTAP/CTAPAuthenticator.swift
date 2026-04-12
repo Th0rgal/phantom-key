@@ -28,7 +28,7 @@ public struct StoredCredential: Sendable, Codable {
     public let algorithm: Int
     public let createdAt: Date
     public let isResident: Bool
-    public let signatureCounter: UInt32
+    public var signatureCounter: UInt32
 
     public init(
         credentialId: Data,
@@ -54,6 +54,10 @@ public struct StoredCredential: Sendable, Codable {
         self.createdAt = createdAt
         self.isResident = isResident
         self.signatureCounter = signatureCounter
+    }
+
+    public mutating func incrementCounter() {
+        signatureCounter &+= 1
     }
 }
 
@@ -129,7 +133,7 @@ public struct AuthenticatorInfo: Sendable {
     }
 }
 
-public struct AuthenticatorData {
+public struct AuthenticatorData: Sendable {
     public let rpIdHash: Data
     public let flags: UInt8
     public let signCount: UInt32

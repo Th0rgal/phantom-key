@@ -200,6 +200,76 @@ struct AttestationTests {
 
 @Suite("Stored Credential")
 struct StoredCredentialTests {
+    @Test("Increment signature counter")
+    func incrementCounter() {
+        var cred = StoredCredential(
+            credentialId: Data([0x01]),
+            relyingPartyId: "test.com",
+            relyingPartyName: "Test",
+            userId: Data([0x0A]),
+            userName: "bob",
+            userDisplayName: "Bob",
+            privateKeySerialized: Data(),
+            algorithm: -7,
+            signatureCounter: 0
+        )
+
+        cred.incrementCounter()
+        #expect(cred.signatureCounter == 1)
+
+        cred.incrementCounter()
+        #expect(cred.signatureCounter == 2)
+    }
+
+    @Test("Counter wraps on overflow")
+    func counterWraps() {
+        var cred = StoredCredential(
+            credentialId: Data([0x01]),
+            relyingPartyId: "test.com",
+            relyingPartyName: "Test",
+            userId: Data([0x0A]),
+            userName: "bob",
+            userDisplayName: "Bob",
+            privateKeySerialized: Data(),
+            algorithm: -7,
+            signatureCounter: UInt32.max
+        )
+
+        cred.incrementCounter()
+        #expect(cred.signatureCounter == 0)
+    }
+
+    @Test("Self attestation signature is verifiable")
+    func selfAttestationSignatureVerification() throws {
+        let builder = AttestationBuilder()
+        let keyPair = SoftwareKeyPair.generate(algorithm: .es256)
+        let authData = Data(repeating: 0xAA, count: 37)
+        let clientDataHash = Data(repeating: 0xBB, count: 32)
+
+        let attestation = try builder.buildSelfAttestation(
+            authData: authData,
+            clientDataHash: clientDataHash,
+            keyPair: keyPair
+        )
+
+        // Decode and extract signature
+        let decoded = try CBORDecoder().decode(attestation)
+        guard case .map(let pairs) = decoded,
+              case .map(let attStmt) = pairs[1].1,
+              case .byteString(let sig) = attStmt[1].1 else {
+            Issue.record("Could not extract signature from attestation")
+            return
+        }
+
+        // Verify: signature is over authData || clientDataHash
+        var signatureBase = Data()
+        signatureBase.append(authData)
+        signatureBase.append(clientDataHash)
+
+        let valid = try keyPair.verify(signature: sig, for: signatureBase)
+        #expect(valid == true)
+    }
+
     @Test("StoredCredential is Codable")
     func codableRoundtrip() throws {
         let cred = StoredCredential(

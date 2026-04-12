@@ -10,6 +10,7 @@ public enum CBORValue: Equatable, Sendable {
     case bool(Bool)
     case null
     case simple(UInt8)
+    indirect case tagged(UInt64, CBORValue)
 
     public static func == (lhs: CBORValue, rhs: CBORValue) -> Bool {
         switch (lhs, rhs) {
@@ -21,6 +22,8 @@ public enum CBORValue: Equatable, Sendable {
         case (.bool(let a), .bool(let b)): return a == b
         case (.null, .null): return true
         case (.simple(let a), .simple(let b)): return a == b
+        case (.tagged(let tagA, let valA), .tagged(let tagB, let valB)):
+            return tagA == tagB && valA == valB
         case (.map(let a), .map(let b)):
             guard a.count == b.count else { return false }
             for (i, pair) in a.enumerated() {
@@ -32,14 +35,16 @@ public enum CBORValue: Equatable, Sendable {
     }
 }
 
-public enum CBORError: Error {
+public enum CBORError: Error, Sendable {
     case unexpectedEnd
     case invalidFormat
     case unsupportedType(UInt8)
     case invalidUTF8
+    case nestingTooDeep
+    case containerTooLarge
 }
 
-public struct CBOREncoder {
+public struct CBOREncoder: Sendable {
     public init() {}
 
     public func encode(_ value: CBORValue) -> Data {
@@ -72,6 +77,9 @@ public struct CBOREncoder {
                 encodeValue(key, into: &data)
                 encodeValue(val, into: &data)
             }
+        case .tagged(let tag, let inner):
+            encodeUnsigned(majorType: 6, value: tag, into: &data)
+            encodeValue(inner, into: &data)
         case .bool(let b):
             data.append(b ? 0xF5 : 0xF4)
         case .null:
@@ -109,15 +117,19 @@ public struct CBOREncoder {
     }
 }
 
-public struct CBORDecoder {
+public struct CBORDecoder: Sendable {
+    public static let maxNestingDepth = 32
+    public static let maxContainerSize = 65536
+
     public init() {}
 
     public func decode(_ data: Data) throws -> CBORValue {
         var offset = 0
-        return try decodeValue(data, offset: &offset)
+        return try decodeValue(data, offset: &offset, depth: 0)
     }
 
-    private func decodeValue(_ data: Data, offset: inout Int) throws -> CBORValue {
+    private func decodeValue(_ data: Data, offset: inout Int, depth: Int) throws -> CBORValue {
+        guard depth < Self.maxNestingDepth else { throw CBORError.nestingTooDeep }
         guard offset < data.count else { throw CBORError.unexpectedEnd }
 
         let initial = data[offset]
@@ -135,6 +147,7 @@ public struct CBORDecoder {
         case 2:
             let len = try decodeUnsigned(additionalInfo, data: data, offset: &offset)
             let count = Int(len)
+            guard count <= Self.maxContainerSize else { throw CBORError.containerTooLarge }
             guard offset + count <= data.count else { throw CBORError.unexpectedEnd }
             let bytes = data[offset..<(offset + count)]
             offset += count
@@ -142,6 +155,7 @@ public struct CBORDecoder {
         case 3:
             let len = try decodeUnsigned(additionalInfo, data: data, offset: &offset)
             let count = Int(len)
+            guard count <= Self.maxContainerSize else { throw CBORError.containerTooLarge }
             guard offset + count <= data.count else { throw CBORError.unexpectedEnd }
             let bytes = data[offset..<(offset + count)]
             offset += count
@@ -151,20 +165,28 @@ public struct CBORDecoder {
             return .textString(str)
         case 4:
             let count = try decodeUnsigned(additionalInfo, data: data, offset: &offset)
+            guard count <= Self.maxContainerSize else { throw CBORError.containerTooLarge }
             var items: [CBORValue] = []
+            items.reserveCapacity(Int(min(count, 256)))
             for _ in 0..<count {
-                items.append(try decodeValue(data, offset: &offset))
+                items.append(try decodeValue(data, offset: &offset, depth: depth + 1))
             }
             return .array(items)
         case 5:
             let count = try decodeUnsigned(additionalInfo, data: data, offset: &offset)
+            guard count <= Self.maxContainerSize else { throw CBORError.containerTooLarge }
             var pairs: [(CBORValue, CBORValue)] = []
+            pairs.reserveCapacity(Int(min(count, 256)))
             for _ in 0..<count {
-                let key = try decodeValue(data, offset: &offset)
-                let val = try decodeValue(data, offset: &offset)
+                let key = try decodeValue(data, offset: &offset, depth: depth + 1)
+                let val = try decodeValue(data, offset: &offset, depth: depth + 1)
                 pairs.append((key, val))
             }
             return .map(pairs)
+        case 6:
+            let tag = try decodeUnsigned(additionalInfo, data: data, offset: &offset)
+            let inner = try decodeValue(data, offset: &offset, depth: depth + 1)
+            return .tagged(tag, inner)
         case 7:
             switch additionalInfo {
             case 20: return .bool(false)

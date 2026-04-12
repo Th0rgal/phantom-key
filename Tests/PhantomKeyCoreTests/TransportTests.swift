@@ -156,6 +156,86 @@ struct HIDMessageTests {
         }
     }
 
+    @Test("Exact single packet boundary (57 bytes)")
+    func exactSinglePacketBoundary() {
+        let channelId: UInt32 = 0xAABBCCDD
+        // Init packet payload capacity = 64 - 7 = 57 bytes
+        let data = Data(repeating: 0xEE, count: 57)
+        let packets = assembler.buildResponse(
+            channelId: channelId,
+            command: HIDCommandByte.cbor.rawValue,
+            data: data
+        )
+        #expect(packets.count == 1)
+    }
+
+    @Test("One byte over single packet boundary requires continuation")
+    func oneOverBoundary() {
+        let channelId: UInt32 = 0xAABBCCDD
+        let data = Data(repeating: 0xEE, count: 58)
+        let packets = assembler.buildResponse(
+            channelId: channelId,
+            command: HIDCommandByte.cbor.rawValue,
+            data: data
+        )
+        #expect(packets.count == 2)
+    }
+
+    @Test("Continuation packet sequence numbers are sequential")
+    func continuationSequenceNumbers() {
+        let channelId: UInt32 = 0x11223344
+        // 57 (init) + 59*3 = 234 bytes → 1 init + 3 continuation packets
+        let data = Data(repeating: 0xAA, count: 57 + 59 * 3)
+        let packets = assembler.buildResponse(
+            channelId: channelId,
+            command: HIDCommandByte.cbor.rawValue,
+            data: data
+        )
+        #expect(packets.count == 4)
+
+        // Continuation packets have seq at byte 4
+        for i in 1..<packets.count {
+            if let parsed = assembler.parseContPacket(packets[i]) {
+                #expect(parsed.seq == UInt8(i - 1))
+                #expect(parsed.channelId == channelId)
+            } else {
+                Issue.record("Failed to parse continuation packet \(i)")
+            }
+        }
+    }
+
+    @Test("Empty message still produces one packet")
+    func emptyHIDMessage() {
+        let packets = assembler.buildResponse(
+            channelId: 0xDEADBEEF,
+            command: HIDCommandByte.cbor.rawValue,
+            data: Data()
+        )
+        #expect(packets.count == 1)
+
+        if let parsed = assembler.parseInitPacket(packets[0]) {
+            #expect(parsed.totalLength == 0)
+        }
+    }
+
+    @Test("Envelope sequence number overflow in serialization")
+    func envelopeMaxSequence() throws {
+        let envelope = Envelope(type: .keepAlive, sequence: UInt32.max, payload: Data([0x01]))
+        let serialized = envelope.serialize()
+        let deserialized = try Envelope.deserialize(serialized)
+        #expect(deserialized.sequence == UInt32.max)
+    }
+
+    @Test("Envelope rejects unknown message type byte")
+    func envelopeUnknownType() {
+        var data = Data(repeating: 0, count: 10)
+        data[0] = Envelope.protocolVersion
+        data[1] = 0xFE // not a valid MessageType
+        #expect(throws: EnvelopeError.self) {
+            try Envelope.deserialize(data)
+        }
+    }
+
     @Test("Init response serialization")
     func initResponseSerialization() {
         let nonce = Data([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08])

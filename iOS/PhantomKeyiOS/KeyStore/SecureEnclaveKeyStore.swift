@@ -51,7 +51,7 @@ actor SecureEnclaveKeyStore: CredentialStore {
         let data = try JSONEncoder().encode(metadata)
         let metadataQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.phantomkey.credentials",
+            kSecAttrService as String: "md.thomas.phantomkey.credentials",
             kSecAttrAccount as String: credential.credentialId.base64EncodedString(),
             kSecValueData as String: data,
         ]
@@ -87,7 +87,7 @@ actor SecureEnclaveKeyStore: CredentialStore {
 
         let metaQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.phantomkey.credentials",
+            kSecAttrService as String: "md.thomas.phantomkey.credentials",
             kSecAttrAccount as String: credentialId.base64EncodedString(),
         ]
         SecItemDelete(metaQuery as CFDictionary)
@@ -107,7 +107,9 @@ actor SecureEnclaveKeyStore: CredentialStore {
             throw KeyStoreError.keyNotFound
         }
 
-        let secKey = privateKey as! SecKey
+        guard let secKey = privateKey as? SecKey else {
+            throw KeyStoreError.keyNotFound
+        }
         var error: Unmanaged<CFError>?
         guard let signature = SecKeyCreateSignature(
             secKey,
@@ -137,7 +139,7 @@ actor SecureEnclaveKeyStore: CredentialStore {
     private func loadAllMetadata() throws -> [CredentialMetadata] {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.phantomkey.credentials",
+            kSecAttrService as String: "md.thomas.phantomkey.credentials",
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitAll,
         ]

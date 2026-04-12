@@ -41,7 +41,7 @@ public struct PairedDevice: Sendable, Codable {
     }
 }
 
-public struct PairingInitiator {
+public struct PairingInitiator: Sendable {
     private let keys: PairingKeys
     private let pairingCode: String
 
@@ -75,11 +75,11 @@ public struct PairingInitiator {
 
     private func generateServiceUUID() -> String {
         let hex = (0..<4).map { _ in String(format: "%04X", UInt16.random(in: 0...UInt16.max)) }
-        return "\(hex[0])\(hex[1])-\(hex[2])-\(hex[3])-AAAA-PHANTOMKEY000"
+        return "\(hex[0])\(hex[1])-\(hex[2])-\(hex[3])-AAAA-F1D0AE000000"
     }
 }
 
-public struct PairingResponder {
+public struct PairingResponder: Sendable {
     private let keys: PairingKeys
 
     public init() {

@@ -14,9 +14,9 @@ class PeripheralController: NSObject, ObservableObject {
     private var secureChannel: SecureChannel?
     private var pendingData = Data()
 
-    static let serviceUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-PHANTOMKEY00")
-    static let writeCharUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-PHANTOMKEY01")
-    static let readCharUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-PHANTOMKEY02")
+    static let serviceUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-F1D0AE000000")
+    static let writeCharUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-F1D0AE000001")
+    static let readCharUUID = CBUUID(string: "A1B2C3D4-E5F6-7890-ABCD-F1D0AE000002")
 
     @Published var isAdvertising = false
     @Published var connectedDevice: String?

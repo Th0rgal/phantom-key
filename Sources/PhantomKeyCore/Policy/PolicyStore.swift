@@ -7,35 +7,26 @@ public protocol PolicyPersistence: Sendable {
     func loadGlobalPolicy() async throws -> GlobalPolicy?
 }
 
-public final class InMemoryPolicyStore: PolicyPersistence, @unchecked Sendable {
+public actor InMemoryPolicyStore: PolicyPersistence {
     private var rules: [PolicyRule] = []
     private var globalPolicy: GlobalPolicy?
-    private let lock = NSLock()
 
     public init() {}
 
     public func saveRules(_ rules: [PolicyRule]) async throws {
-        lock.lock()
-        defer { lock.unlock() }
         self.rules = rules
     }
 
     public func loadRules() async throws -> [PolicyRule] {
-        lock.lock()
-        defer { lock.unlock() }
-        return rules
+        rules
     }
 
     public func saveGlobalPolicy(_ policy: GlobalPolicy) async throws {
-        lock.lock()
-        defer { lock.unlock() }
         self.globalPolicy = policy
     }
 
     public func loadGlobalPolicy() async throws -> GlobalPolicy? {
-        lock.lock()
-        defer { lock.unlock() }
-        return globalPolicy
+        globalPolicy
     }
 }
 

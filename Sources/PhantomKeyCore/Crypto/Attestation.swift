@@ -1,7 +1,7 @@
 import Foundation
 import Crypto
 
-public struct AttestationBuilder {
+public struct AttestationBuilder: Sendable {
     public init() {}
 
     public func buildNoneAttestation(

@@ -117,6 +117,44 @@ struct CBORTests {
         }
     }
 
+    @Test("Encode and decode tagged values")
+    func taggedValues() throws {
+        let tagged: CBORValue = .tagged(1, .unsignedInt(1681234567))
+        let encoded = encoder.encode(tagged)
+        let decoded = try decoder.decode(encoded)
+        #expect(decoded == tagged)
+    }
+
+    @Test("Nested tagged value roundtrip")
+    func nestedTaggedValue() throws {
+        let tagged: CBORValue = .tagged(24, .byteString(Data([0x01, 0x02, 0x03])))
+        let encoded = encoder.encode(tagged)
+        let decoded = try decoder.decode(encoded)
+        #expect(decoded == tagged)
+    }
+
+    @Test("Nesting depth limit is enforced")
+    func nestingDepthLimit() {
+        // Build deeply nested array: [[[[...]]]]
+        var value: CBORValue = .unsignedInt(0)
+        for _ in 0..<(CBORDecoder.maxNestingDepth + 1) {
+            value = .array([value])
+        }
+        let encoded = encoder.encode(value)
+        #expect(throws: CBORError.self) {
+            try decoder.decode(encoded)
+        }
+    }
+
+    @Test("Simple values roundtrip")
+    func simpleValues() throws {
+        for s: UInt8 in [0, 1, 19, 32, 255] {
+            let encoded = encoder.encode(.simple(s))
+            let decoded = try decoder.decode(encoded)
+            #expect(decoded == .simple(s), "Failed for simple(\(s))")
+        }
+    }
+
     @Test("CTAP2 authenticatorGetInfo response roundtrip")
     func authenticatorGetInfoCBOR() throws {
         let info = AuthenticatorInfo.phantomKey.toCBOR()

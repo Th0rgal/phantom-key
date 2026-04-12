@@ -125,6 +125,85 @@ struct CryptoTests {
         }
     }
 
+    @Test("ES256 signature verification succeeds for correct message")
+    func es256Verify() throws {
+        let kp = SoftwareKeyPair.generate(algorithm: .es256)
+        let message = Data("verify this message".utf8)
+        let signature = try kp.sign(message)
+        let valid = try kp.verify(signature: signature, for: message)
+        #expect(valid == true)
+    }
+
+    @Test("ES256 signature verification fails for wrong message")
+    func es256VerifyWrongMessage() throws {
+        let kp = SoftwareKeyPair.generate(algorithm: .es256)
+        let signature = try kp.sign(Data("correct message".utf8))
+        let valid = try kp.verify(signature: signature, for: Data("wrong message".utf8))
+        #expect(valid == false)
+    }
+
+    @Test("EdDSA signature verification succeeds for correct message")
+    func edDSAVerify() throws {
+        let kp = SoftwareKeyPair.generate(algorithm: .edDSA)
+        let message = Data("verify this ed25519 message".utf8)
+        let signature = try kp.sign(message)
+        let valid = try kp.verify(signature: signature, for: message)
+        #expect(valid == true)
+    }
+
+    @Test("EdDSA signature verification fails for wrong message")
+    func edDSAVerifyWrongMessage() throws {
+        let kp = SoftwareKeyPair.generate(algorithm: .edDSA)
+        let signature = try kp.sign(Data("correct".utf8))
+        let valid = try kp.verify(signature: signature, for: Data("wrong".utf8))
+        #expect(valid == false)
+    }
+
+    @Test("COSE public key binary encoding roundtrip")
+    func cosePublicKeyEncode() throws {
+        let kp = SoftwareKeyPair.generate(algorithm: .es256)
+        let encoded = COSEPublicKey.encode(algorithm: .es256, publicKey: kp.publicKeyData)
+        let decoded = try CBORDecoder().decode(encoded)
+        if case .map(let pairs) = decoded {
+            #expect(pairs.count == 5)
+        } else {
+            Issue.record("Expected COSE map from COSEPublicKey.encode")
+        }
+    }
+
+    @Test("Reject invalid public key length in key exchange")
+    func rejectInvalidPublicKeyLength() throws {
+        let alice = PairingKeys()
+        let shortKey = Data(repeating: 0xAA, count: 16) // too short
+        #expect(throws: ChannelCryptoError.self) {
+            try alice.deriveSharedSecret(remotePublicKey: shortKey)
+        }
+    }
+
+    @Test("Encrypt/decrypt empty data")
+    func encryptDecryptEmpty() throws {
+        let alice = PairingKeys()
+        let bob = PairingKeys()
+        let sharedKey = try alice.deriveSharedSecret(remotePublicKey: bob.publicKeyData)
+        let encryptor = ChannelEncryptor(sharedKey: sharedKey)
+
+        let ciphertext = try encryptor.encrypt(Data())
+        let decrypted = try encryptor.decrypt(ciphertext)
+        #expect(decrypted == Data())
+    }
+
+    @Test("Decrypt too-short ciphertext throws error")
+    func decryptTooShort() throws {
+        let alice = PairingKeys()
+        let bob = PairingKeys()
+        let sharedKey = try alice.deriveSharedSecret(remotePublicKey: bob.publicKeyData)
+        let encryptor = ChannelEncryptor(sharedKey: sharedKey)
+
+        #expect(throws: ChannelCryptoError.self) {
+            try encryptor.decrypt(Data(repeating: 0, count: 10))
+        }
+    }
+
     @Test("Pairing code is 6 digits")
     func pairingCode() {
         let code = PairingKeys.generatePairingCode()

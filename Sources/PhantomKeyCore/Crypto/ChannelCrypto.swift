@@ -15,6 +15,9 @@ public struct PairingKeys: @unchecked Sendable {
     }
 
     public func deriveSharedSecret(remotePublicKey: Data) throws -> SymmetricKey {
+        guard remotePublicKey.count == 32 else {
+            throw ChannelCryptoError.invalidPublicKey
+        }
         let remotePub = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: remotePublicKey)
         let shared = try localPrivateKey.sharedSecretFromKeyAgreement(with: remotePub)
         return shared.hkdfDerivedSymmetricKey(
