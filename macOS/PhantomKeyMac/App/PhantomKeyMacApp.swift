@@ -1,5 +1,6 @@
 #if canImport(AppKit)
 import SwiftUI
+import PhantomKeyCore
 
 @main
 struct PhantomKeyMacApp: App {

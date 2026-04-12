@@ -1,0 +1,370 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1778FCA2F3ECD89DF3D01324 /* PhantomKeyCore in Frameworks */ = {isa = PBXBuildFile; productRef = 606CCDC99F3610CAC25A13E8 /* PhantomKeyCore */; };
+		1A2C6DAED817A9D84C1B931F /* BridgeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F989284B6FCC11D595187863 /* BridgeController.swift */; };
+		8F4E9C1FF40A3D7BAE242AD6 /* PhantomKeyMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0029BF0CC6254B0ACD0BE886 /* PhantomKeyMacApp.swift */; };
+		C3EB758129FFCEFA3F6AE30C /* VirtualHIDDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DAB53656AD3A427B951CAE2 /* VirtualHIDDevice.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0029BF0CC6254B0ACD0BE886 /* PhantomKeyMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhantomKeyMacApp.swift; sourceTree = "<group>"; };
+		2F63252F358254AE549E934C /* PhantomKeyMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PhantomKeyMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8124E6F345564C69388647E3 /* phantom-key */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "phantom-key"; path = ..; sourceTree = SOURCE_ROOT; };
+		8DAB53656AD3A427B951CAE2 /* VirtualHIDDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VirtualHIDDevice.swift; sourceTree = "<group>"; };
+		F989284B6FCC11D595187863 /* BridgeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeController.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		81BAFE37954D999CA25CF823 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1778FCA2F3ECD89DF3D01324 /* PhantomKeyCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		01EC0F15776A808F72167FAF /* HID */ = {
+			isa = PBXGroup;
+			children = (
+				8DAB53656AD3A427B951CAE2 /* VirtualHIDDevice.swift */,
+			);
+			path = HID;
+			sourceTree = "<group>";
+		};
+		0E51AA12D8D1AD7064684D5C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				0029BF0CC6254B0ACD0BE886 /* PhantomKeyMacApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		5581DD872F61C3BB66AC9B8E /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				8124E6F345564C69388647E3 /* phantom-key */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		8B407D2EDA746ABB9DF6A94D = {
+			isa = PBXGroup;
+			children = (
+				5581DD872F61C3BB66AC9B8E /* Packages */,
+				CD818D205016333BC621ACB0 /* PhantomKeyMac */,
+				9F273D133812661199C92A34 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9F273D133812661199C92A34 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				2F63252F358254AE549E934C /* PhantomKeyMac.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CD818D205016333BC621ACB0 /* PhantomKeyMac */ = {
+			isa = PBXGroup;
+			children = (
+				0E51AA12D8D1AD7064684D5C /* App */,
+				E31F10E93BE8117681663BF4 /* Bridge */,
+				01EC0F15776A808F72167FAF /* HID */,
+			);
+			path = PhantomKeyMac;
+			sourceTree = "<group>";
+		};
+		E31F10E93BE8117681663BF4 /* Bridge */ = {
+			isa = PBXGroup;
+			children = (
+				F989284B6FCC11D595187863 /* BridgeController.swift */,
+			);
+			path = Bridge;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3021C70031C7D9F1F2B06B3D /* PhantomKeyMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 08B3EB48E3D889797AC3C19D /* Build configuration list for PBXNativeTarget "PhantomKeyMac" */;
+			buildPhases = (
+				6C0C67DD08802F27E9185886 /* Sources */,
+				81BAFE37954D999CA25CF823 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PhantomKeyMac;
+			packageProductDependencies = (
+				606CCDC99F3610CAC25A13E8 /* PhantomKeyCore */,
+			);
+			productName = PhantomKeyMac;
+			productReference = 2F63252F358254AE549E934C /* PhantomKeyMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		11D245BE64649A2BFB4A7CEB /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					3021C70031C7D9F1F2B06B3D = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 733ED45D09524614D885A679 /* Build configuration list for PBXProject "PhantomKeyMac" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8B407D2EDA746ABB9DF6A94D;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A6E31209306A534F0719F82D /* XCLocalSwiftPackageReference ".." */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3021C70031C7D9F1F2B06B3D /* PhantomKeyMac */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6C0C67DD08802F27E9185886 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A2C6DAED817A9D84C1B931F /* BridgeController.swift in Sources */,
+				8F4E9C1FF40A3D7BAE242AD6 /* PhantomKeyMacApp.swift in Sources */,
+				C3EB758129FFCEFA3F6AE30C /* VirtualHIDDevice.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		6366E4868DE7E6C23E7722D1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		8437AB248BEF173D66B64AD9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		B2D621F0A604661E1872475C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "";
+				INFOPLIST_KEY_CFBundleDisplayName = PhantomKey;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = md.thomas.phantomkey.mac;
+				PRODUCT_NAME = PhantomKey;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		B7E82FD79487366A16FA3978 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "";
+				INFOPLIST_KEY_CFBundleDisplayName = PhantomKey;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = md.thomas.phantomkey.mac;
+				PRODUCT_NAME = PhantomKey;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		08B3EB48E3D889797AC3C19D /* Build configuration list for PBXNativeTarget "PhantomKeyMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B7E82FD79487366A16FA3978 /* Debug */,
+				B2D621F0A604661E1872475C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		733ED45D09524614D885A679 /* Build configuration list for PBXProject "PhantomKeyMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8437AB248BEF173D66B64AD9 /* Debug */,
+				6366E4868DE7E6C23E7722D1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A6E31209306A534F0719F82D /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		606CCDC99F3610CAC25A13E8 /* PhantomKeyCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PhantomKeyCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 11D245BE64649A2BFB4A7CEB /* Project object */;
+}
