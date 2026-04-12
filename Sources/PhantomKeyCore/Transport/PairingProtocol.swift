@@ -80,20 +80,7 @@ public struct PairingInitiator: Sendable {
     public func beginNoiseHandshake(
         responderStaticPublic: Data
     ) throws -> (message: Data, pending: PendingInitiator) {
-        let rs = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: responderStaticPublic)
-
-        var ss = SymmetricState(protocolName: NoiseNK.protocolName)
-        ss.mixHash(responderStaticPublic)
-
-        let e = Curve25519.KeyAgreement.PrivateKey()
-        let ephemeralPublic = e.publicKey.rawRepresentation
-        ss.mixHash(ephemeralPublic)
-
-        let sharedES = try e.sharedSecretFromKeyAgreement(with: rs)
-        ss.mixKey(sharedES.withUnsafeBytes { Data($0) })
-
-        let pending = PendingInitiator(ephemeralPrivate: e, symmetricState: ss)
-        return (message: Data(ephemeralPublic), pending: pending)
+        try NoiseNK.initiator(responderStaticPublic: responderStaticPublic)
     }
 
     /// Finalize the Noise NK handshake after receiving the responder's reply.

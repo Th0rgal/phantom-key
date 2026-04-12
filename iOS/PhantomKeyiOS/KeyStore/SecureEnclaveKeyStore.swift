@@ -36,7 +36,8 @@ actor SecureEnclaveKeyStore: CredentialStore {
             credProtect: credential.credProtect,
             largeBlobKey: credential.largeBlobKey,
             hmacSecret: credential.hmacSecret,
-            privateKeyDataRepresentation: privateKey.dataRepresentation
+            privateKeyDataRepresentation: privateKey.dataRepresentation,
+            signatureCounter: credential.signatureCounter
         )
 
         let data = try JSONEncoder().encode(metadata)
@@ -142,7 +143,38 @@ actor SecureEnclaveKeyStore: CredentialStore {
         )
 
         let signature = try privateKey.signature(for: data)
+        try incrementCounter(credentialId: credentialId)
         return signature.derRepresentation
+    }
+
+    private func incrementCounter(credentialId: Data) throws {
+        let account = credentialId.base64EncodedString()
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "md.thomas.phantomkey.credentials",
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+        ]
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess, let data = item as? Data else {
+            throw KeyStoreError.keyNotFound
+        }
+
+        var metadata = try JSONDecoder().decode(CredentialMetadata.self, from: data)
+        metadata.signatureCounter = metadata.signatureCounter &+ 1
+
+        let updatedData = try JSONEncoder().encode(metadata)
+        let updateQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "md.thomas.phantomkey.credentials",
+            kSecAttrAccount as String: account,
+        ]
+        let attrs: [String: Any] = [
+            kSecValueData as String: updatedData,
+        ]
+        SecItemUpdate(updateQuery as CFDictionary, attrs as CFDictionary)
     }
 
     private func createAccessControl() throws -> SecAccessControl {
@@ -192,6 +224,7 @@ struct CredentialMetadata: Codable {
     let largeBlobKey: Data?
     let hmacSecret: Data?
     let privateKeyDataRepresentation: Data?
+    var signatureCounter: UInt32
 
     init(
         credentialId: Data,
@@ -206,7 +239,8 @@ struct CredentialMetadata: Codable {
         credProtect: UInt8? = nil,
         largeBlobKey: Data? = nil,
         hmacSecret: Data? = nil,
-        privateKeyDataRepresentation: Data? = nil
+        privateKeyDataRepresentation: Data? = nil,
+        signatureCounter: UInt32 = 0
     ) {
         self.credentialId = credentialId
         self.relyingPartyId = relyingPartyId
@@ -221,6 +255,7 @@ struct CredentialMetadata: Codable {
         self.largeBlobKey = largeBlobKey
         self.hmacSecret = hmacSecret
         self.privateKeyDataRepresentation = privateKeyDataRepresentation
+        self.signatureCounter = signatureCounter
     }
 
     func toStoredCredential() -> StoredCredential {
@@ -235,7 +270,7 @@ struct CredentialMetadata: Codable {
             algorithm: algorithm,
             createdAt: createdAt,
             isResident: isResident,
-            signatureCounter: 0,
+            signatureCounter: signatureCounter,
             credProtect: credProtect,
             largeBlobKey: largeBlobKey,
             hmacSecret: hmacSecret

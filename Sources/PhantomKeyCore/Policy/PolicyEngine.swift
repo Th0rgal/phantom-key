@@ -96,6 +96,11 @@ public actor PolicyEngine {
         formatter.dateFormat = "HH:mm"
 
         let now = formatter.string(from: Date())
-        return now >= startStr && now <= endStr
+        if startStr <= endStr {
+            return now >= startStr && now <= endStr
+        } else {
+            // Midnight crossing: e.g., 23:00 to 01:00
+            return now >= startStr || now <= endStr
+        }
     }
 }

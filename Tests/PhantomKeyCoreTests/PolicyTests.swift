@@ -113,6 +113,60 @@ struct PolicyTests {
         #expect(retrieved.requireUserPresence == false)
     }
 
+    @Test("Time window rule approves within all-day window")
+    func timeWindowAllDay() async {
+        let engine = PolicyEngine()
+        let rule = PolicyRule(
+            relyingPartyId: "schedule.com",
+            action: .timeWindow,
+            timeWindowStart: "00:00",
+            timeWindowEnd: "23:59"
+        )
+        await engine.setRule(rule)
+
+        let decision = await engine.evaluate(relyingPartyId: "schedule.com", requiresUV: false)
+        #expect(decision == .approve)
+    }
+
+    @Test("Time window rule denies outside window")
+    func timeWindowDeniesOutside() async {
+        let engine = PolicyEngine()
+        // A 1-minute window in the past that never matches current time reliably,
+        // so instead use a window where start == end (a single moment). Any current
+        // time that doesn't exactly match will be denied. We can test deny by using
+        // a zero-width window at a guaranteed-past time string.
+        let rule = PolicyRule(
+            relyingPartyId: "narrow.com",
+            action: .timeWindow,
+            timeWindowStart: "00:00",
+            timeWindowEnd: "00:00"
+        )
+        await engine.setRule(rule)
+
+        // Get the current time string; unless it's exactly "00:00" this should deny.
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        let now = formatter.string(from: Date())
+        let expected: PolicyDecision = (now == "00:00") ? .approve : .deny
+        let decision = await engine.evaluate(relyingPartyId: "narrow.com", requiresUV: false)
+        #expect(decision == expected)
+    }
+
+    @Test("Time window rule denies when no time window configured")
+    func timeWindowMissingDenies() async {
+        let engine = PolicyEngine()
+        let rule = PolicyRule(
+            relyingPartyId: "misconfigured.com",
+            action: .timeWindow,
+            timeWindowStart: nil,
+            timeWindowEnd: nil
+        )
+        await engine.setRule(rule)
+
+        let decision = await engine.evaluate(relyingPartyId: "misconfigured.com", requiresUV: false)
+        #expect(decision == .deny)
+    }
+
     @Test("Get all rules")
     func getAllRules() async {
         let engine = PolicyEngine()
