@@ -7,3 +7,4 @@ DerivedData/
 .netrc
 *.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 macOS/.build/
+iOS/.build/

@@ -5,7 +5,7 @@ import CryptoKit
 import LocalAuthentication
 import PhantomKeyCore
 
-actor SecureEnclaveKeyStore: CredentialStore {
+actor SecureEnclaveKeyStore: @preconcurrency CredentialStore {
     private let accessGroup: String?
 
     init(accessGroup: String? = nil) {
