@@ -7,17 +7,60 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		154B5341C656382ECB07A7CE /* PhantomKeyHIDUserClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A440874F0F7114A650BA386C /* PhantomKeyHIDUserClient.cpp */; };
 		1778FCA2F3ECD89DF3D01324 /* PhantomKeyCore in Frameworks */ = {isa = PBXBuildFile; productRef = 606CCDC99F3610CAC25A13E8 /* PhantomKeyCore */; };
 		1A2C6DAED817A9D84C1B931F /* BridgeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F989284B6FCC11D595187863 /* BridgeController.swift */; };
+		1DFB91DB56846B73FCB9306C /* PhantomKeyHIDDevice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF8839539191A37BDE68FCE8 /* PhantomKeyHIDDevice.cpp */; };
+		325AB5D6DF0372358632B41B /* PhantomKeyDriver.dext in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = C6D85041BE95D7BC0B515E78 /* PhantomKeyDriver.dext */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		3CE704CB58BFE6FD897B4B66 /* DriverClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91BDC634B5DF5E290B745C2 /* DriverClient.swift */; };
+		3FEDCD666FE7EE56B4F09E4E /* HIDDriverKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21C05522785A2A544505E252 /* HIDDriverKit.framework */; };
 		8F4E9C1FF40A3D7BAE242AD6 /* PhantomKeyMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0029BF0CC6254B0ACD0BE886 /* PhantomKeyMacApp.swift */; };
+		A2EEA0878DE3E3C75D438F22 /* PhantomKeyHIDUserClient.iig in Sources */ = {isa = PBXBuildFile; fileRef = 8081E37E112CD1F36EB797DB /* PhantomKeyHIDUserClient.iig */; };
+		A5A55AC340C964AD062C8283 /* DriverKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 53A3E2C5D1DC1BC90CF2AC10 /* DriverKit.framework */; };
 		C3EB758129FFCEFA3F6AE30C /* VirtualHIDDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DAB53656AD3A427B951CAE2 /* VirtualHIDDevice.swift */; };
+		C4BEC1B84DB36F2B6CC63909 /* SystemExtensionActivator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4B464527C2D46E0B26C190 /* SystemExtensionActivator.swift */; };
+		D0C113D0B4328710AB91B019 /* PhantomKeyHIDDevice.iig in Sources */ = {isa = PBXBuildFile; fileRef = 25D42E8E60F6F3F1CE5B9DB3 /* PhantomKeyHIDDevice.iig */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		92A52426CE30A05B2D667EDE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 11D245BE64649A2BFB4A7CEB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E9B6353DAB3930DD6AB91790;
+			remoteInfo = PhantomKeyDriver;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CCC076B3B4A34D22B02518C9 /* Embed System Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(SYSTEM_EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				325AB5D6DF0372358632B41B /* PhantomKeyDriver.dext in Embed System Extensions */,
+			);
+			name = "Embed System Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0029BF0CC6254B0ACD0BE886 /* PhantomKeyMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhantomKeyMacApp.swift; sourceTree = "<group>"; };
+		21C05522785A2A544505E252 /* HIDDriverKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HIDDriverKit.framework; path = System/Library/Frameworks/HIDDriverKit.framework; sourceTree = SDKROOT; };
+		25D42E8E60F6F3F1CE5B9DB3 /* PhantomKeyHIDDevice.iig */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.iig; path = PhantomKeyHIDDevice.iig; sourceTree = "<group>"; };
 		2F63252F358254AE549E934C /* PhantomKeyMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PhantomKeyMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3BE558803381156F5ACA50BA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		53A3E2C5D1DC1BC90CF2AC10 /* DriverKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DriverKit.framework; path = System/Library/Frameworks/DriverKit.framework; sourceTree = SDKROOT; };
+		8081E37E112CD1F36EB797DB /* PhantomKeyHIDUserClient.iig */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.iig; path = PhantomKeyHIDUserClient.iig; sourceTree = "<group>"; };
 		8124E6F345564C69388647E3 /* phantom-key */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "phantom-key"; path = ..; sourceTree = SOURCE_ROOT; };
+		8D4B464527C2D46E0B26C190 /* SystemExtensionActivator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemExtensionActivator.swift; sourceTree = "<group>"; };
 		8DAB53656AD3A427B951CAE2 /* VirtualHIDDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VirtualHIDDevice.swift; sourceTree = "<group>"; };
+		A440874F0F7114A650BA386C /* PhantomKeyHIDUserClient.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PhantomKeyHIDUserClient.cpp; sourceTree = "<group>"; };
+		AF8839539191A37BDE68FCE8 /* PhantomKeyHIDDevice.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PhantomKeyHIDDevice.cpp; sourceTree = "<group>"; };
+		C6D85041BE95D7BC0B515E78 /* PhantomKeyDriver.dext */ = {isa = PBXFileReference; explicitFileType = "wrapper.driver-extension"; includeInIndex = 0; path = PhantomKeyDriver.dext; sourceTree = BUILT_PRODUCTS_DIR; };
+		E91BDC634B5DF5E290B745C2 /* DriverClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverClient.swift; sourceTree = "<group>"; };
 		F989284B6FCC11D595187863 /* BridgeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -30,12 +73,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9419AC1D2291BBD2EBF179E5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3FEDCD666FE7EE56B4F09E4E /* HIDDriverKit.framework in Frameworks */,
+				A5A55AC340C964AD062C8283 /* DriverKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		01EC0F15776A808F72167FAF /* HID */ = {
 			isa = PBXGroup;
 			children = (
+				E91BDC634B5DF5E290B745C2 /* DriverClient.swift */,
+				8D4B464527C2D46E0B26C190 /* SystemExtensionActivator.swift */,
 				8DAB53656AD3A427B951CAE2 /* VirtualHIDDevice.swift */,
 			);
 			path = HID;
@@ -61,7 +115,9 @@
 			isa = PBXGroup;
 			children = (
 				5581DD872F61C3BB66AC9B8E /* Packages */,
+				ED32641405AE8E65300E333A /* PhantomKeyDriver */,
 				CD818D205016333BC621ACB0 /* PhantomKeyMac */,
+				CC5E53066DA30B8AC5FDBE20 /* Frameworks */,
 				9F273D133812661199C92A34 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -69,9 +125,19 @@
 		9F273D133812661199C92A34 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				C6D85041BE95D7BC0B515E78 /* PhantomKeyDriver.dext */,
 				2F63252F358254AE549E934C /* PhantomKeyMac.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		CC5E53066DA30B8AC5FDBE20 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				53A3E2C5D1DC1BC90CF2AC10 /* DriverKit.framework */,
+				21C05522785A2A544505E252 /* HIDDriverKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		CD818D205016333BC621ACB0 /* PhantomKeyMac */ = {
@@ -92,6 +158,18 @@
 			path = Bridge;
 			sourceTree = "<group>";
 		};
+		ED32641405AE8E65300E333A /* PhantomKeyDriver */ = {
+			isa = PBXGroup;
+			children = (
+				3BE558803381156F5ACA50BA /* Info.plist */,
+				AF8839539191A37BDE68FCE8 /* PhantomKeyHIDDevice.cpp */,
+				25D42E8E60F6F3F1CE5B9DB3 /* PhantomKeyHIDDevice.iig */,
+				A440874F0F7114A650BA386C /* PhantomKeyHIDUserClient.cpp */,
+				8081E37E112CD1F36EB797DB /* PhantomKeyHIDUserClient.iig */,
+			);
+			path = PhantomKeyDriver;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -101,10 +179,12 @@
 			buildPhases = (
 				6C0C67DD08802F27E9185886 /* Sources */,
 				81BAFE37954D999CA25CF823 /* Frameworks */,
+				CCC076B3B4A34D22B02518C9 /* Embed System Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				4E604C7FFF297D1B14E6D0EF /* PBXTargetDependency */,
 			);
 			name = PhantomKeyMac;
 			packageProductDependencies = (
@@ -113,6 +193,24 @@
 			productName = PhantomKeyMac;
 			productReference = 2F63252F358254AE549E934C /* PhantomKeyMac.app */;
 			productType = "com.apple.product-type.application";
+		};
+		E9B6353DAB3930DD6AB91790 /* PhantomKeyDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7EA5589073E7C00E8C7949E6 /* Build configuration list for PBXNativeTarget "PhantomKeyDriver" */;
+			buildPhases = (
+				6AA101FDB1FFC14BFFEA8BF9 /* Sources */,
+				9419AC1D2291BBD2EBF179E5 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PhantomKeyDriver;
+			packageProductDependencies = (
+			);
+			productName = PhantomKeyDriver;
+			productReference = C6D85041BE95D7BC0B515E78 /* PhantomKeyDriver.dext */;
+			productType = "com.apple.product-type.driver-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -124,6 +222,11 @@
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					3021C70031C7D9F1F2B06B3D = {
+						DevelopmentTeam = BQ6Z84B8L5;
+						ProvisioningStyle = Automatic;
+					};
+					E9B6353DAB3930DD6AB91790 = {
+						DevelopmentTeam = BQ6Z84B8L5;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -145,23 +248,45 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				E9B6353DAB3930DD6AB91790 /* PhantomKeyDriver */,
 				3021C70031C7D9F1F2B06B3D /* PhantomKeyMac */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		6AA101FDB1FFC14BFFEA8BF9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1DFB91DB56846B73FCB9306C /* PhantomKeyHIDDevice.cpp in Sources */,
+				D0C113D0B4328710AB91B019 /* PhantomKeyHIDDevice.iig in Sources */,
+				154B5341C656382ECB07A7CE /* PhantomKeyHIDUserClient.cpp in Sources */,
+				A2EEA0878DE3E3C75D438F22 /* PhantomKeyHIDUserClient.iig in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6C0C67DD08802F27E9185886 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				1A2C6DAED817A9D84C1B931F /* BridgeController.swift in Sources */,
+				3CE704CB58BFE6FD897B4B66 /* DriverClient.swift in Sources */,
 				8F4E9C1FF40A3D7BAE242AD6 /* PhantomKeyMacApp.swift in Sources */,
+				C4BEC1B84DB36F2B6CC63909 /* SystemExtensionActivator.swift in Sources */,
 				C3EB758129FFCEFA3F6AE30C /* VirtualHIDDevice.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4E604C7FFF297D1B14E6D0EF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E9B6353DAB3930DD6AB91790 /* PhantomKeyDriver */;
+			targetProxy = 92A52426CE30A05B2D667EDE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		6366E4868DE7E6C23E7722D1 /* Release */ = {
@@ -283,16 +408,64 @@
 			};
 			name = Debug;
 		};
+		8A4D22218269EAC6C972C9DE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = PhantomKeyDriver.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = BQ6Z84B8L5;
+				DRIVERKIT_DEPLOYMENT_TARGET = 21.0;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(DERIVED_SOURCES_DIR)",
+				);
+				INFOPLIST_FILE = PhantomKeyDriver/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = md.thomas.phantomkey.mac.driver;
+				PRODUCT_NAME = PhantomKeyDriver;
+				SDKROOT = driverkit;
+			};
+			name = Debug;
+		};
+		9519552C98B35BBD6C7C4700 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = PhantomKeyDriver.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = BQ6Z84B8L5;
+				DRIVERKIT_DEPLOYMENT_TARGET = 21.0;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(DERIVED_SOURCES_DIR)",
+				);
+				INFOPLIST_FILE = PhantomKeyDriver/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = md.thomas.phantomkey.mac.driver;
+				PRODUCT_NAME = PhantomKeyDriver;
+				SDKROOT = driverkit;
+			};
+			name = Release;
+		};
 		B2D621F0A604661E1872475C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_ENTITLEMENTS = PhantomKeyMac.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				ENABLE_HARDENED_RUNTIME = NO;
+				DEVELOPMENT_TEAM = BQ6Z84B8L5;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "";
 				INFOPLIST_KEY_CFBundleDisplayName = PhantomKey;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -310,12 +483,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_ENTITLEMENTS = PhantomKeyMac.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				ENABLE_HARDENED_RUNTIME = NO;
+				DEVELOPMENT_TEAM = BQ6Z84B8L5;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "";
 				INFOPLIST_KEY_CFBundleDisplayName = PhantomKey;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -346,6 +519,15 @@
 			buildConfigurations = (
 				8437AB248BEF173D66B64AD9 /* Debug */,
 				6366E4868DE7E6C23E7722D1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7EA5589073E7C00E8C7949E6 /* Build configuration list for PBXNativeTarget "PhantomKeyDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A4D22218269EAC6C972C9DE /* Debug */,
+				9519552C98B35BBD6C7C4700 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

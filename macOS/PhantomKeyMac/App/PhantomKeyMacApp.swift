@@ -13,6 +13,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var bridgeController: BridgeController?
     private var pairingWindow: NSWindow?
     private var settingsWindow: NSWindow?
+    #if canImport(SystemExtensions)
+    private var extensionActivator: SystemExtensionActivator?
+    #endif
 
     static func main() {
         let app = NSApplication.shared
@@ -25,6 +28,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupMenuBar()
         bridgeController = BridgeController()
         bridgeController?.start()
+
+        // Activate the DriverKit system extension
+        #if canImport(SystemExtensions)
+        extensionActivator = SystemExtensionActivator()
+        extensionActivator?.activate()
+        #endif
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
