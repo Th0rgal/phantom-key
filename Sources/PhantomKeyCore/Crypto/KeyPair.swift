@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 public enum KeyAlgorithm: Int, Sendable, Codable {
     case es256 = -7

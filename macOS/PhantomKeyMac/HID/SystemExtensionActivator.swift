@@ -51,7 +51,11 @@ class SystemExtensionActivator: NSObject, OSSystemExtensionRequestDelegate {
     }
 
     func request(_ request: OSSystemExtensionRequest, didFailWithError error: Error) {
-        logger.error("System extension activation failed: \(error.localizedDescription)")
+        let nsError = error as NSError
+        logger.error("System extension activation failed: \(error.localizedDescription, privacy: .public) domain=\(nsError.domain, privacy: .public) code=\(nsError.code)")
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+            logger.error("Underlying: \(underlying.localizedDescription, privacy: .public) domain=\(underlying.domain, privacy: .public) code=\(underlying.code)")
+        }
         onCompletion?(false)
     }
 }

@@ -21,6 +21,8 @@ public enum MessageType: UInt8, Sendable, Codable {
     case noiseHandshakeResponse = 0x05
     case policyUpdate = 0x20
     case policyResponse = 0x21
+    case directSignRequest = 0x28
+    case directSignResponse = 0x29
     case keepAlive = 0x30
     case cancel = 0x31
     case error = 0xFF

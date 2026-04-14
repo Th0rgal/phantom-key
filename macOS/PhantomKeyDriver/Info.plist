@@ -16,7 +16,7 @@
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleExecutable</key>
-    <string>PhantomKeyDriver</string>
+    <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleSupportedPlatforms</key>
     <array>
         <string>DriverKit</string>

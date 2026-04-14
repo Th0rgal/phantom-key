@@ -1,6 +1,10 @@
 import Testing
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 @testable import PhantomKeyCore
 
 // MARK: - PipeTransportChannel

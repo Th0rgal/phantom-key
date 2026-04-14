@@ -5,11 +5,7 @@
 <dict>
     <key>com.apple.developer.system-extension.install</key>
     <true/>
-    <!-- TODO: Uncomment once Apple approves DriverKit UserClient Access entitlement
-    <key>com.apple.developer.driverkit.userclient-access</key>
-    <array>
-        <string>md.thomas.phantomkey.mac.driver</string>
-    </array>
-    -->
+    <key>com.apple.developer.driverkit.allow-any-userclient-access</key>
+    <true/>
 </dict>
 </plist>

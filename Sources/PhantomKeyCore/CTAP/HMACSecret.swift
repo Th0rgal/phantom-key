@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 /// CTAP 2.1 hmac-secret extension processor.
 /// Computes credential-scoped HMAC-SHA-256 symmetric secrets from platform-provided salts.

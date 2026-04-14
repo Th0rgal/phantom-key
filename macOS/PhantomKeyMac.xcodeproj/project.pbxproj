@@ -427,7 +427,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = md.thomas.phantomkey.mac.driver;
-				PRODUCT_NAME = PhantomKeyDriver;
+				PRODUCT_NAME = "md.thomas.phantomkey.mac.driver";
 				SDKROOT = driverkit;
 			};
 			name = Debug;
@@ -451,7 +451,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = md.thomas.phantomkey.mac.driver;
-				PRODUCT_NAME = PhantomKeyDriver;
+				PRODUCT_NAME = "md.thomas.phantomkey.mac.driver";
 				SDKROOT = driverkit;
 			};
 			name = Release;
@@ -469,6 +469,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = PhantomKey;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "PhantomKey uses Bluetooth to communicate with your iPhone for signing requests.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -492,6 +493,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = PhantomKey;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "PhantomKey uses Bluetooth to communicate with your iPhone for signing requests.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

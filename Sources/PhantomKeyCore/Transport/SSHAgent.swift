@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 // MARK: - SSH Agent Protocol Constants
 
@@ -44,8 +48,11 @@ struct SSHWireFormat {
     /// Decode a string (4-byte length + bytes) from data at offset, advancing offset
     static func decodeString(_ data: Data, offset: inout Int) -> Data? {
         guard offset + 4 <= data.count else { return nil }
-        let len = Int(UInt32(data[offset]) << 24 | UInt32(data[offset+1]) << 16
-            | UInt32(data[offset+2]) << 8 | UInt32(data[offset+3]))
+        let lb0 = UInt32(data[offset]) << 24
+        let lb1 = UInt32(data[offset+1]) << 16
+        let lb2 = UInt32(data[offset+2]) << 8
+        let lb3 = UInt32(data[offset+3])
+        let len = Int(lb0 | lb1 | lb2 | lb3)
         offset += 4
         guard offset + len <= data.count else { return nil }
         let result = Data(data[offset..<(offset + len)])
@@ -56,8 +63,11 @@ struct SSHWireFormat {
     /// Decode a uint32 from data at offset, advancing offset
     static func decodeUInt32(_ data: Data, offset: inout Int) -> UInt32? {
         guard offset + 4 <= data.count else { return nil }
-        let val = UInt32(data[offset]) << 24 | UInt32(data[offset+1]) << 16
-            | UInt32(data[offset+2]) << 8 | UInt32(data[offset+3])
+        let vb0 = UInt32(data[offset]) << 24
+        let vb1 = UInt32(data[offset+1]) << 16
+        let vb2 = UInt32(data[offset+2]) << 8
+        let vb3 = UInt32(data[offset+3])
+        let val = vb0 | vb1 | vb2 | vb3
         offset += 4
         return val
     }
@@ -130,28 +140,84 @@ struct SSHWireFormat {
 // MARK: - SSH Agent Key
 
 /// An SSH agent key: an ECDSA P-256 key pair with a comment.
-public struct SSHAgentKey: Sendable {
-    public let privateKey: P256.Signing.PrivateKey
+/// Supports two modes:
+/// - Local: signs directly with a P256 private key
+/// - Delegated: forwards sign requests to an iOS authenticator via loopback TCP
+public struct SSHAgentKey: @unchecked Sendable {
+    public let publicKey: P256.Signing.PublicKey
     public let comment: String
 
+    // Local signing
+    private let localPrivateKey: P256.Signing.PrivateKey?
+
+    // Delegated signing (via iOS app)
+    let signingFD: Int32?
+    let credentialId: Data?
+    let rpId: String?
+
+    /// Create a key for local signing.
     public init(privateKey: P256.Signing.PrivateKey, comment: String) {
-        self.privateKey = privateKey
+        self.publicKey = privateKey.publicKey
+        self.localPrivateKey = privateKey
         self.comment = comment
+        self.signingFD = nil
+        self.credentialId = nil
+        self.rpId = nil
     }
 
-    /// Generate a new SSH key with the given comment.
+    /// Create a key for delegated signing via iOS authenticator.
+    public init(privateKey publicKey: P256.Signing.PublicKey, signingFD: Int32, credentialId: Data, rpId: String, comment: String) {
+        self.publicKey = publicKey
+        self.localPrivateKey = nil
+        self.comment = comment
+        self.signingFD = signingFD
+        self.credentialId = credentialId
+        self.rpId = rpId
+    }
+
+    /// Generate a new SSH key with the given comment (local signing).
     public static func generate(comment: String) -> SSHAgentKey {
         SSHAgentKey(privateKey: P256.Signing.PrivateKey(), comment: comment)
     }
 
     /// The public key blob in SSH wire format.
     public var publicKeyBlob: Data {
-        SSHWireFormat.ecdsaPublicKeyBlob(publicKey: privateKey.publicKey)
+        SSHWireFormat.ecdsaPublicKeyBlob(publicKey: publicKey)
     }
 
     /// The public key in OpenSSH authorized_keys format.
     public var authorizedKeyLine: String {
         "ecdsa-sha2-nistp256 \(publicKeyBlob.base64EncodedString()) \(comment)"
+    }
+
+    /// Sign data - either locally or by delegating to iOS.
+    func sign(_ data: Data) throws -> P256.Signing.ECDSASignature {
+        if let localPrivateKey {
+            return try localPrivateKey.signature(for: data)
+        }
+
+        guard let fd = signingFD, let credId = credentialId else {
+            throw SSHAgentError.connectionFailed
+        }
+
+        // Send direct-sign request to iOS app
+        let payload = CBOREncoder().encode(.map([
+            (.unsignedInt(1), .byteString(credId)),
+            (.unsignedInt(2), .byteString(data)),
+        ]))
+        let request = Envelope(type: .directSignRequest, sequence: 0, payload: payload)
+        try LoopbackSigningService.sendMessage(fd, envelope: request)
+        let response = try LoopbackSigningService.receiveMessage(fd)
+        guard response.type == .directSignResponse else {
+            throw SSHAgentError.connectionFailed
+        }
+        let decoded = try CBORDecoder().decode(response.payload)
+        guard case .map(let pairs) = decoded,
+              let sigEntry = pairs.first(where: { $0.0 == .unsignedInt(1) }),
+              case .byteString(let sigDER) = sigEntry.1 else {
+            throw SSHAgentError.connectionFailed
+        }
+        return try P256.Signing.ECDSASignature(derRepresentation: sigDER)
     }
 }
 
@@ -295,8 +361,11 @@ public actor SSHAgent {
         while true {
             // Read 4-byte message length
             guard let lenData = readExact(fd: fd, count: 4) else { return }
-            let msgLen = Int(UInt32(lenData[0]) << 24 | UInt32(lenData[1]) << 16
-                | UInt32(lenData[2]) << 8 | UInt32(lenData[3]))
+            let b0 = UInt32(lenData[0]) << 24
+            let b1 = UInt32(lenData[1]) << 16
+            let b2 = UInt32(lenData[2]) << 8
+            let b3 = UInt32(lenData[3])
+            let msgLen = Int(b0 | b1 | b2 | b3)
             guard msgLen > 0, msgLen < 256 * 1024 else { return }
 
             // Read message body
@@ -350,8 +419,8 @@ public actor SSHAgent {
             return Data([SSHAgentMessage.failure.rawValue])
         }
 
-        // Sign the data
-        guard let signature = try? key.privateKey.signature(for: dataToSign) else {
+        // Sign the data (locally or via iOS delegated signing)
+        guard let signature = try? key.sign(dataToSign) else {
             return Data([SSHAgentMessage.failure.rawValue])
         }
 

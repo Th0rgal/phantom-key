@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 public enum PINProtocolVersion: Int, Sendable, Codable {
     case v1 = 1

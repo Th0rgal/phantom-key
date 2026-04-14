@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 /// CTAP 2.1 Large Blob Storage.
 /// Stores an array of opaque blobs associated with credentials via largeBlobKey.

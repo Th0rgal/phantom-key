@@ -12,6 +12,7 @@
 		8064E55FE53DA02351B919B6 /* SecureEnclaveKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A2506B321564401589D2388 /* SecureEnclaveKeyStore.swift */; };
 		96BBE959A3A7AFAD2A6B4DD1 /* PhantomKeyCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7910FE7FD32E589C676868AC /* PhantomKeyCore */; };
 		CFFAF2264147BEF831FD9372 /* PhantomKeyiOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4F37EEAB1C8CD974F2B7BD /* PhantomKeyiOSApp.swift */; };
+		AABB001122334455DEADBEEF /* LoopbackSigningServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB001122334455DEADBEE0 /* LoopbackSigningServer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +21,7 @@
 		9BFA0390D2F0D3E62674BAF3 /* phantom-key */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "phantom-key"; path = ..; sourceTree = SOURCE_ROOT; };
 		E3FAE584A3D1AAD6E84A6CE7 /* PhantomKeyiOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PhantomKeyiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ECC2E06E9D6BAC319696BCBD /* PeripheralController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeripheralController.swift; sourceTree = "<group>"; };
+		AABB001122334455DEADBEE0 /* LoopbackSigningServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopbackSigningServer.swift; sourceTree = "<group>"; };
 		ED4F37EEAB1C8CD974F2B7BD /* PhantomKeyiOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhantomKeyiOSApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -65,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				ECC2E06E9D6BAC319696BCBD /* PeripheralController.swift */,
+				AABB001122334455DEADBEE0 /* LoopbackSigningServer.swift */,
 			);
 			path = Bridge;
 			sourceTree = "<group>";
@@ -159,6 +162,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6BC37B5874147D48EF8F1CE6 /* PeripheralController.swift in Sources */,
+				AABB001122334455DEADBEEF /* LoopbackSigningServer.swift in Sources */,
 				CFFAF2264147BEF831FD9372 /* PhantomKeyiOSApp.swift in Sources */,
 				8064E55FE53DA02351B919B6 /* SecureEnclaveKeyStore.swift in Sources */,
 				73045BB62C314ADE006F41F1 /* SimulatorKeyStore.swift in Sources */,

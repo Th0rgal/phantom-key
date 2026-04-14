@@ -23,10 +23,19 @@ struct PhantomKeyiOSApp: App {
         }
     }()
 
+    #if targetEnvironment(simulator)
+    private let signingServer = LoopbackSigningServer()
+    #endif
+
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .task {
+                    #if targetEnvironment(simulator)
+                    try? await signingServer.start()
+                    #endif
+                }
         }
     }
 }

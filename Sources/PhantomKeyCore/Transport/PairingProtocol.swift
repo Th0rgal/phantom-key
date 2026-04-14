@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 public struct PairingData: Sendable, Codable {
     public let publicKey: Data

@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 public protocol TransportChannel: Sendable {
     var isConnected: Bool { get async }

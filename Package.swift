@@ -18,7 +18,7 @@ let package = Package(
         .target(
             name: "PhantomKeyCore",
             dependencies: [
-                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux, .windows])),
             ],
             path: "Sources/PhantomKeyCore"
         ),
