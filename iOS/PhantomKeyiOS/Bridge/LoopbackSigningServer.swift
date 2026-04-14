@@ -217,7 +217,7 @@ actor LoopbackSigningServer {
         let aaguid = Data("PhantomKeySim\0\0\0".utf8.prefix(16))
         let publicKeyCOSE = CBOREncoder().encode(keyPair.publicKeyCOSE())
         let attestedCredData = AttestationBuilder().buildAttestedCredentialData(
-            aaguid: Data("PhantomKeySim\0\0\0".utf8.prefix(16)),
+            aaguid: aaguid,
             credentialId: keyPair.credentialId,
             publicKeyCOSE: publicKeyCOSE
         )
@@ -275,7 +275,9 @@ actor LoopbackSigningServer {
 
         let credentials: [StoredCredential]
         if let credentialId {
-            credentials = [await keyStore.find(credentialId: credentialId)].compactMap { $0 }
+            // Find by credential ID, then verify RP ID matches
+            let found = [await keyStore.findAny(credentialId: credentialId)].compactMap { $0 }
+            credentials = found.filter { $0.relyingPartyId == rpId }
         } else {
             credentials = await keyStore.find(relyingPartyId: rpId)
         }

@@ -154,6 +154,8 @@ public struct SSHAgentKey: @unchecked Sendable {
     let signingFD: Int32?
     let credentialId: Data?
     let rpId: String?
+    /// Serializes all delegated signing I/O on the shared TCP socket.
+    private let signingLock: NSLock?
 
     /// Create a key for local signing.
     public init(privateKey: P256.Signing.PrivateKey, comment: String) {
@@ -163,6 +165,7 @@ public struct SSHAgentKey: @unchecked Sendable {
         self.signingFD = nil
         self.credentialId = nil
         self.rpId = nil
+        self.signingLock = nil
     }
 
     /// Create a key for delegated signing via iOS authenticator.
@@ -173,6 +176,7 @@ public struct SSHAgentKey: @unchecked Sendable {
         self.signingFD = signingFD
         self.credentialId = credentialId
         self.rpId = rpId
+        self.signingLock = NSLock()
     }
 
     /// Generate a new SSH key with the given comment (local signing).
@@ -196,9 +200,13 @@ public struct SSHAgentKey: @unchecked Sendable {
             return try localPrivateKey.signature(for: data)
         }
 
-        guard let fd = signingFD, let credId = credentialId else {
+        guard let fd = signingFD, let credId = credentialId, let lock = signingLock else {
             throw SSHAgentError.connectionFailed
         }
+
+        // Serialize access to the shared TCP socket
+        lock.lock()
+        defer { lock.unlock() }
 
         // Send direct-sign request to iOS app
         let payload = CBOREncoder().encode(.map([
@@ -446,8 +454,13 @@ public actor SSHAgent {
     private static func sendMessage(fd: Int32, data: Data) {
         var packet = SSHWireFormat.encodeUInt32(UInt32(data.count))
         packet.append(data)
-        _ = packet.withUnsafeBytes { buf in
-            write(fd, buf.baseAddress!, buf.count)
+        packet.withUnsafeBytes { buf in
+            var written = 0
+            while written < buf.count {
+                let n = write(fd, buf.baseAddress! + written, buf.count - written)
+                if n <= 0 { return }
+                written += n
+            }
         }
     }
 }
