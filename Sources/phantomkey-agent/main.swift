@@ -54,7 +54,7 @@ Task {
 
             // Create an SSH key that delegates signing to the iOS app
             key = SSHAgentKey(
-                privateKey: publicKey,
+                publicKey: publicKey,
                 signingFD: fd,
                 credentialId: credentialId,
                 rpId: "ssh:phantomkey",

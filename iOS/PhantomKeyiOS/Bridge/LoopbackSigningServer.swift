@@ -16,20 +16,21 @@ private actor DirectCredentialStore {
         credentials.append(credential)
     }
 
-    func find(credentialId: Data) -> StoredCredential? {
-        credentials.first { $0.credentialId == credentialId }
-    }
-
-    func find(relyingPartyId: String) -> [StoredCredential] {
-        credentials.filter { $0.relyingPartyId == relyingPartyId }
+    func find(relyingPartyId: String, credentialId: Data?) -> [StoredCredential] {
+        credentials.filter { cred in
+            cred.relyingPartyId == relyingPartyId
+                && (credentialId == nil || cred.credentialId == credentialId)
+        }
     }
 
     func findAny(credentialId: Data) -> StoredCredential? {
         credentials.first { $0.credentialId == credentialId }
     }
 
-    func enumerateRelyingParties() -> [String] {
-        Array(Set(credentials.map(\.relyingPartyId)))
+    func incrementCounter(credentialId: Data) {
+        if let idx = credentials.firstIndex(where: { $0.credentialId == credentialId }) {
+            credentials[idx].signatureCounter += 1
+        }
     }
 }
 
@@ -273,17 +274,13 @@ actor LoopbackSigningServer {
             }
         }
 
-        let credentials: [StoredCredential]
-        if let credentialId {
-            // Find by credential ID, then verify RP ID matches
-            let found = [await keyStore.findAny(credentialId: credentialId)].compactMap { $0 }
-            credentials = found.filter { $0.relyingPartyId == rpId }
-        } else {
-            credentials = await keyStore.find(relyingPartyId: rpId)
-        }
+        let credentials = await keyStore.find(relyingPartyId: rpId, credentialId: credentialId)
         guard let cred = credentials.first else {
             throw AuthenticatorError.credentialNotFound
         }
+
+        // Increment signature counter
+        await keyStore.incrementCounter(credentialId: cred.credentialId)
 
         // Sign
         let rpIdHash = AuthenticatorData.makeRpIdHash(rpId)

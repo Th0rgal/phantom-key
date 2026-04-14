@@ -169,7 +169,7 @@ public struct SSHAgentKey: @unchecked Sendable {
     }
 
     /// Create a key for delegated signing via iOS authenticator.
-    public init(privateKey publicKey: P256.Signing.PublicKey, signingFD: Int32, credentialId: Data, rpId: String, comment: String) {
+    public init(publicKey: P256.Signing.PublicKey, signingFD: Int32, credentialId: Data, rpId: String, comment: String) {
         self.publicKey = publicKey
         self.localPrivateKey = nil
         self.comment = comment
@@ -257,6 +257,9 @@ public actor SSHAgent {
         keys.append(key)
     }
 
+    /// Current snapshot of keys (for client handlers).
+    var currentKeys: [SSHAgentKey] { keys }
+
     /// Remove all keys.
     public func removeAllKeys() {
         keys.removeAll()
@@ -343,10 +346,10 @@ public actor SSHAgent {
             }
 
             if clientFD >= 0 {
-                // Handle client in a separate task
-                let currentKeys = keys
+                // Handle client in a separate task, passing actor ref for fresh key access
+                let agent = self
                 Task.detached {
-                    await Self.handleClient(fd: clientFD, keys: currentKeys)
+                    await Self.handleClient(fd: clientFD, agent: agent)
                 }
             } else if errno == EWOULDBLOCK || errno == EAGAIN {
                 // No pending connections, sleep briefly
@@ -359,8 +362,8 @@ public actor SSHAgent {
 
     // MARK: - Client Handling
 
-    private static func handleClient(fd: Int32, keys: [SSHAgentKey]) async {
-        defer { Darwin.close(fd) }
+    private static func handleClient(fd: Int32, agent: SSHAgent) async {
+        defer { close(fd) }
 
         // Set client socket to blocking for simplicity
         let flags = fcntl(fd, F_GETFL, 0)
@@ -386,12 +389,16 @@ public actor SSHAgent {
             let payload = Data(msgData.dropFirst())
             let response: Data
 
+            // Query fresh keys from the actor for each request
+            let keys = await agent.currentKeys
+
             switch msgType {
             case .requestIdentities:
                 response = handleRequestIdentities(keys: keys)
             case .signRequest:
                 response = handleSignRequest(payload: payload, keys: keys)
             case .removeAllIdentities:
+                await agent.removeAllKeys()
                 response = Data([SSHAgentMessage.success.rawValue])
             case .lock, .unlock:
                 response = Data([SSHAgentMessage.success.rawValue])

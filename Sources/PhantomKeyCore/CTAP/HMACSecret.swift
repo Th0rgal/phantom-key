@@ -161,13 +161,12 @@ func aesCBCDecrypt(key: Data, iv: Data, ciphertext: Data) throws -> Data {
 }
 #else
 // Fallback for non-Apple platforms.
-// TODO: Use _CryptoExtras AES._CBC for Linux support.
 func aesCBCEncrypt(key: Data, iv: Data, plaintext: Data) throws -> Data {
-    fatalError("AES-CBC requires CommonCrypto (Apple platforms)")
+    throw HMACSecretError.unsupportedPlatform
 }
 
 func aesCBCDecrypt(key: Data, iv: Data, ciphertext: Data) throws -> Data {
-    fatalError("AES-CBC requires CommonCrypto (Apple platforms)")
+    throw HMACSecretError.unsupportedPlatform
 }
 #endif
 
@@ -175,6 +174,7 @@ public enum HMACSecretError: Error, Sendable {
     case invalidSaltLength
     case invalidInput
     case verificationFailed
+    case unsupportedPlatform
 }
 
 // MARK: - Constant-time comparison

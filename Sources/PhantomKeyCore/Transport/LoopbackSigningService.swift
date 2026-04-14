@@ -4,6 +4,11 @@ import CryptoKit
 #else
 import Crypto
 #endif
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 /// A simple TCP-based signing service for simulator testing.
 /// The iOS app runs the server; the SSH agent connects as a client.
@@ -45,7 +50,7 @@ public enum LoopbackSigningService {
 
         let result = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                Darwin.connect(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_in>.size))
+                Foundation.connect(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
         guard result == 0 else {
