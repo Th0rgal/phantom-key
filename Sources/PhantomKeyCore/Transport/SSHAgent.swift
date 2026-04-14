@@ -260,8 +260,13 @@ public actor SSHAgent {
     /// Current snapshot of keys (for client handlers).
     var currentKeys: [SSHAgentKey] { keys }
 
-    /// Remove all keys.
+    /// Remove all keys. Closes any delegated signing file descriptors.
     public func removeAllKeys() {
+        for key in keys {
+            if let fd = key.signingFD, fd >= 0 {
+                close(fd)
+            }
+        }
         keys.removeAll()
     }
 
@@ -316,15 +321,21 @@ public actor SSHAgent {
         }
     }
 
-    /// Stop the agent.
+    /// Stop the agent. Closes the listening socket and all delegated signing FDs.
     public func stop() {
         isRunning = false
         acceptTask?.cancel()
         acceptTask = nil
         if serverSocket >= 0 {
-            Darwin.close(serverSocket)
+            close(serverSocket)
             serverSocket = -1
         }
+        for key in keys {
+            if let fd = key.signingFD, fd >= 0 {
+                close(fd)
+            }
+        }
+        keys.removeAll()
         unlink(socketPath)
     }
 
@@ -346,10 +357,11 @@ public actor SSHAgent {
             }
 
             if clientFD >= 0 {
-                // Handle client in a separate task, passing actor ref for fresh key access
+                // Handle client on a GCD queue to keep blocking socket I/O off the
+                // Swift cooperative thread pool.
                 let agent = self
-                Task.detached {
-                    await Self.handleClient(fd: clientFD, agent: agent)
+                DispatchQueue.global(qos: .userInitiated).async {
+                    Self.handleClientBlocking(fd: clientFD, agent: agent)
                 }
             } else if errno == EWOULDBLOCK || errno == EAGAIN {
                 // No pending connections, sleep briefly
@@ -362,10 +374,33 @@ public actor SSHAgent {
 
     // MARK: - Client Handling
 
-    private static func handleClient(fd: Int32, agent: SSHAgent) async {
+    /// Synchronously bridge to an async actor call from a GCD queue.
+    private static func syncAwait<T: Sendable>(_ op: @Sendable @escaping () async -> T) -> T {
+        let sem = DispatchSemaphore(value: 0)
+        let box = ResultBox<T>()
+        Task {
+            box.value = await op()
+            sem.signal()
+        }
+        sem.wait()
+        return box.value!
+    }
+
+    private static func syncAwait(_ op: @Sendable @escaping () async -> Void) {
+        let sem = DispatchSemaphore(value: 0)
+        Task {
+            await op()
+            sem.signal()
+        }
+        sem.wait()
+    }
+
+    /// Handle a client connection on a GCD thread. All socket I/O is blocking;
+    /// actor calls are bridged via `syncAwait`.
+    private static func handleClientBlocking(fd: Int32, agent: SSHAgent) {
         defer { close(fd) }
 
-        // Set client socket to blocking for simplicity
+        // Ensure the client socket is blocking
         let flags = fcntl(fd, F_GETFL, 0)
         _ = fcntl(fd, F_SETFL, flags & ~O_NONBLOCK)
 
@@ -390,7 +425,7 @@ public actor SSHAgent {
             let response: Data
 
             // Query fresh keys from the actor for each request
-            let keys = await agent.currentKeys
+            let keys = syncAwait { await agent.currentKeys }
 
             switch msgType {
             case .requestIdentities:
@@ -398,7 +433,7 @@ public actor SSHAgent {
             case .signRequest:
                 response = handleSignRequest(payload: payload, keys: keys)
             case .removeAllIdentities:
-                await agent.removeAllKeys()
+                syncAwait { await agent.removeAllKeys() }
                 response = Data([SSHAgentMessage.success.rawValue])
             case .lock, .unlock:
                 response = Data([SSHAgentMessage.success.rawValue])
@@ -473,6 +508,11 @@ public actor SSHAgent {
 }
 
 // MARK: - Errors
+
+/// Mutable box for bridging Task results out of `syncAwait` to a dispatch semaphore.
+private final class ResultBox<T>: @unchecked Sendable {
+    var value: T?
+}
 
 public enum SSHAgentError: Error, Sendable {
     case socketCreationFailed

@@ -225,10 +225,11 @@ actor LoopbackSigningServer {
         let flags: UInt8 = AuthenticatorData.flagUserPresent
             | AuthenticatorData.flagUserVerified
             | AuthenticatorData.flagAttestedCredential
+        // Start at 0 so the first assertion (counter=1) is strictly monotonic.
         let authData = AuthenticatorData(
             rpIdHash: rpIdHash,
             flags: flags,
-            signCount: 1,
+            signCount: 0,
             attestedCredentialData: attestedCredData
         )
         let authDataBytes = authData.serialize()

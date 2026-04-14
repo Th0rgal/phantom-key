@@ -94,4 +94,17 @@ Task {
 }
 
 semaphore.wait()
+
+// Ensure the agent stops (closing the listening socket and delegated signing FDs)
+// when the process receives SIGINT/SIGTERM.
+let stopAgent: @convention(c) (Int32) -> Void = { _ in
+    exit(0)
+}
+signal(SIGINT, stopAgent)
+signal(SIGTERM, stopAgent)
+atexit {
+    // Best-effort cleanup; actor isolation prevents calling stop() directly here,
+    // but closing the process releases the FDs.
+}
+
 dispatchMain()
