@@ -9,27 +9,31 @@ actor SimulatorKeyStore: @preconcurrency CredentialStore {
     private var credentials: [StoredCredential] = []
 
     func store(credential: StoredCredential) async throws {
-        // Generate a software P256 signing key
-        let privateKey = P256.Signing.PrivateKey()
-        var cred = credential
-        // Replace the serialized key with the software key
-        cred = StoredCredential(
-            credentialId: credential.credentialId,
-            relyingPartyId: credential.relyingPartyId,
-            relyingPartyName: credential.relyingPartyName,
-            userId: credential.userId,
-            userName: credential.userName,
-            userDisplayName: credential.userDisplayName,
-            privateKeySerialized: privateKey.rawRepresentation,
-            algorithm: credential.algorithm,
-            createdAt: credential.createdAt,
-            isResident: credential.isResident,
-            signatureCounter: credential.signatureCounter,
-            credProtect: credential.credProtect,
-            largeBlobKey: credential.largeBlobKey,
-            hmacSecret: credential.hmacSecret
-        )
-        credentials.append(cred)
+        // Preserve the caller's key material. If the credential was created
+        // without a private key (e.g. from a registration flow that only knows
+        // the public key), generate a software one and replace it.
+        if credential.privateKeySerialized.isEmpty {
+            let privateKey = P256.Signing.PrivateKey()
+            let cred = StoredCredential(
+                credentialId: credential.credentialId,
+                relyingPartyId: credential.relyingPartyId,
+                relyingPartyName: credential.relyingPartyName,
+                userId: credential.userId,
+                userName: credential.userName,
+                userDisplayName: credential.userDisplayName,
+                privateKeySerialized: privateKey.rawRepresentation,
+                algorithm: credential.algorithm,
+                createdAt: credential.createdAt,
+                isResident: credential.isResident,
+                signatureCounter: credential.signatureCounter,
+                credProtect: credential.credProtect,
+                largeBlobKey: credential.largeBlobKey,
+                hmacSecret: credential.hmacSecret
+            )
+            credentials.append(cred)
+        } else {
+            credentials.append(credential)
+        }
     }
 
     func find(relyingPartyId: String, credentialId: Data?) async throws -> [StoredCredential] {

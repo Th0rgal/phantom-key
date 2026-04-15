@@ -111,8 +111,10 @@ actor LoopbackSigningServer {
             if clientFD >= 0 {
                 logger.info("[LoopbackSigningServer] Client connected")
                 let store = keyStore
-                Task.detached {
-                    await Self.handleClient(clientFD, keyStore: store)
+                // Dispatch to GCD to keep blocking socket I/O off the Swift
+                // cooperative thread pool.
+                DispatchQueue.global(qos: .userInitiated).async {
+                    Self.handleClientBlocking(clientFD, keyStore: store)
                 }
             } else if errno == EWOULDBLOCK || errno == EAGAIN {
                 try? await Task.sleep(nanoseconds: 50_000_000)
@@ -122,10 +124,29 @@ actor LoopbackSigningServer {
         }
     }
 
-    private static func handleClient(_ fd: Int32, keyStore: DirectCredentialStore) async {
+    /// Bridge an async throws call from a GCD thread to a synchronous result.
+    private static func syncAwaitThrowing<T: Sendable>(_ op: @Sendable @escaping () async throws -> T) throws -> T {
+        let sem = DispatchSemaphore(value: 0)
+        let box = ResultBox<Result<T, Error>>()
+        Task {
+            do {
+                let value = try await op()
+                box.value = .success(value)
+            } catch {
+                box.value = .failure(error)
+            }
+            sem.signal()
+        }
+        sem.wait()
+        switch box.value! {
+        case .success(let v): return v
+        case .failure(let e): throw e
+        }
+    }
+
+    private static func handleClientBlocking(_ fd: Int32, keyStore: DirectCredentialStore) {
         defer { close(fd) }
 
-        // Set blocking
         let flags = fcntl(fd, F_GETFL, 0)
         _ = fcntl(fd, F_SETFL, flags & ~O_NONBLOCK)
 
@@ -140,11 +161,11 @@ actor LoopbackSigningServer {
                 let response: Envelope
                 switch envelope.type {
                 case .makeCredentialRequest:
-                    response = try await handleMakeCredential(envelope, keyStore: keyStore)
+                    response = try syncAwaitThrowing { try await handleMakeCredential(envelope, keyStore: keyStore) }
                 case .getAssertionRequest:
-                    response = try await handleGetAssertion(envelope, keyStore: keyStore)
+                    response = try syncAwaitThrowing { try await handleGetAssertion(envelope, keyStore: keyStore) }
                 case .directSignRequest:
-                    response = try await handleDirectSign(envelope, keyStore: keyStore)
+                    response = try syncAwaitThrowing { try await handleDirectSign(envelope, keyStore: keyStore) }
                 case .getInfoRequest:
                     let info = AuthenticatorInfo.phantomKey
                     let payload = CBOREncoder().encode(info.toCBOR())
@@ -161,6 +182,10 @@ actor LoopbackSigningServer {
         }
 
         logger.info("[LoopbackSigningServer] Client disconnected")
+    }
+
+    private final class ResultBox<T>: @unchecked Sendable {
+        var value: T?
     }
 
     // MARK: - CTAP Handlers

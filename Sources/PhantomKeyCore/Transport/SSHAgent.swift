@@ -4,6 +4,11 @@ import CryptoKit
 #else
 import Crypto
 #endif
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 // MARK: - SSH Agent Protocol Constants
 
@@ -300,7 +305,7 @@ public actor SSHAgent {
             }
         }
         guard bindResult == 0 else {
-            Darwin.close(fd)
+            close(fd)
             throw SSHAgentError.bindFailed(errno)
         }
 
@@ -308,7 +313,7 @@ public actor SSHAgent {
         chmod(socketPath, 0o600)
 
         guard listen(fd, 5) == 0 else {
-            Darwin.close(fd)
+            close(fd)
             throw SSHAgentError.listenFailed(errno)
         }
 
@@ -436,7 +441,10 @@ public actor SSHAgent {
                 syncAwait { await agent.removeAllKeys() }
                 response = Data([SSHAgentMessage.success.rawValue])
             case .lock, .unlock:
-                response = Data([SSHAgentMessage.success.rawValue])
+                // Not implemented: return failure rather than a lying success
+                // that would let signing continue while the client thinks the
+                // agent is locked.
+                response = Data([SSHAgentMessage.failure.rawValue])
             default:
                 response = Data([SSHAgentMessage.failure.rawValue])
             }
