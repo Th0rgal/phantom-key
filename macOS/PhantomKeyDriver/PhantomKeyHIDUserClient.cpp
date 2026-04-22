@@ -8,11 +8,16 @@
 
 struct PhantomKeyHIDUserClient_IVars {
     PhantomKeyHIDDevice * device;
+    OSAction *            reportCallback;
 };
 
 static kern_return_t externalMethodSendReport(OSObject * target,
                                                void * reference,
                                                IOUserClientMethodArguments * arguments);
+
+static kern_return_t externalMethodRegisterReportCallback(OSObject * target,
+                                                           void * reference,
+                                                           IOUserClientMethodArguments * arguments);
 
 static const IOUserClientMethodDispatch sMethods[kPhantomKeyMethodCount] = {
     [kPhantomKeyMethodSendReport] = {
@@ -20,6 +25,14 @@ static const IOUserClientMethodDispatch sMethods[kPhantomKeyMethodCount] = {
         .checkCompletionExists = false,
         .checkScalarInputCount = 0,
         .checkStructureInputSize = 64,
+        .checkScalarOutputCount = 0,
+        .checkStructureOutputSize = 0,
+    },
+    [kPhantomKeyMethodRegisterReportCallback] = {
+        .function = externalMethodRegisterReportCallback,
+        .checkCompletionExists = true,
+        .checkScalarInputCount = 0,
+        .checkStructureInputSize = 0,
         .checkScalarOutputCount = 0,
         .checkStructureOutputSize = 0,
     },
@@ -35,7 +48,10 @@ bool PhantomKeyHIDUserClient::init()
 
 void PhantomKeyHIDUserClient::free()
 {
-    IOSafeDeleteNULL(ivars, PhantomKeyHIDUserClient_IVars, 1);
+    if (ivars) {
+        OSSafeReleaseNULL(ivars->reportCallback);
+        IOSafeDeleteNULL(ivars, PhantomKeyHIDUserClient_IVars, 1);
+    }
     super::free();
 }
 
@@ -54,6 +70,7 @@ kern_return_t PhantomKeyHIDUserClient::Start_Impl(IOService_Start_Args)
         os_log(OS_LOG_DEFAULT, "PhantomKeyHIDUserClient: provider is not PhantomKeyHIDDevice");
         return kIOReturnError;
     }
+    ivars->device->setUserClient(this);
 
     os_log(OS_LOG_DEFAULT, "PhantomKeyHIDUserClient: started successfully");
     return kIOReturnSuccess;
@@ -62,7 +79,11 @@ kern_return_t PhantomKeyHIDUserClient::Start_Impl(IOService_Start_Args)
 kern_return_t PhantomKeyHIDUserClient::Stop_Impl(IOService_Stop_Args)
 {
     os_log(OS_LOG_DEFAULT, "PhantomKeyHIDUserClient: Stop");
-    ivars->device = nullptr;
+    if (ivars->device) {
+        ivars->device->setUserClient(nullptr);
+        ivars->device = nullptr;
+    }
+    OSSafeReleaseNULL(ivars->reportCallback);
     return Stop(provider, SUPERDISPATCH);
 }
 
@@ -110,4 +131,42 @@ static kern_return_t externalMethodSendReport(OSObject * target,
 
     os_log(OS_LOG_DEFAULT, "PhantomKeyHIDUserClient: sendReport %u bytes", length);
     return self->ivars->device->postReport((const uint8_t *)data, length);
+}
+
+static kern_return_t externalMethodRegisterReportCallback(OSObject * target,
+                                                           void * reference,
+                                                           IOUserClientMethodArguments * arguments)
+{
+    auto self = OSDynamicCast(PhantomKeyHIDUserClient, target);
+    if (!self || !self->ivars) {
+        return kIOReturnNotReady;
+    }
+    if (!arguments->completion) {
+        return kIOReturnBadArgument;
+    }
+
+    arguments->completion->retain();
+    OSSafeReleaseNULL(self->ivars->reportCallback);
+    self->ivars->reportCallback = arguments->completion;
+
+    os_log(OS_LOG_DEFAULT, "PhantomKeyHIDUserClient: report callback registered");
+    return kIOReturnSuccess;
+}
+
+kern_return_t PhantomKeyHIDUserClient::deliverSetReport(const uint8_t * data, uint32_t length)
+{
+    if (!ivars || !ivars->reportCallback) {
+        return kIOReturnNotReady;
+    }
+    if (!data || length == 0 || length > 64) {
+        return kIOReturnBadArgument;
+    }
+
+    // Pack the 64-byte (or shorter) HID report into 8 uint64_t slots for the
+    // async scalar completion. Shorter reports are zero-padded.
+    uint64_t asyncData[8] = {0};
+    memcpy(asyncData, data, length);
+
+    AsyncCompletion(ivars->reportCallback, kIOReturnSuccess, asyncData, 8);
+    return kIOReturnSuccess;
 }

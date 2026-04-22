@@ -23,11 +23,16 @@ public:
 
     // Store reference to the HID device for posting reports
     virtual void setDevice(PhantomKeyHIDDevice * device) LOCALONLY;
+
+    // Fire the registered async callback with a 64-byte output report from the
+    // HID stack (browser → driver → host app).
+    virtual kern_return_t deliverSetReport(const uint8_t * data, uint32_t length) LOCALONLY;
 };
 
 // External method selectors
 enum {
-    kPhantomKeyMethodSendReport = 0,    // Host app → driver → HID stack
+    kPhantomKeyMethodSendReport            = 0, // Host app → driver → HID stack
+    kPhantomKeyMethodRegisterReportCallback = 1, // Register async callback for HID → host app
     kPhantomKeyMethodCount
 };
 

@@ -4,6 +4,7 @@
 #include <HIDDriverKit/HIDDriverKit.h>
 
 #include "PhantomKeyHIDDevice.h"
+#include "PhantomKeyHIDUserClient.h"
 
 // FIDO Alliance HID descriptor: usage page 0xF1D0, usage 0x01, 64-byte reports
 static const uint8_t kFIDOHIDDescriptor[] = {
@@ -26,7 +27,8 @@ static const uint8_t kFIDOHIDDescriptor[] = {
 };
 
 struct PhantomKeyHIDDevice_IVars {
-    OSData * reportDescriptor;
+    OSData *                  reportDescriptor;
+    PhantomKeyHIDUserClient * activeClient; // non-retained; cleared in setUserClient(nullptr)
 };
 
 bool PhantomKeyHIDDevice::init()
@@ -143,8 +145,36 @@ kern_return_t PhantomKeyHIDDevice::setReport(
     report->GetLength(&length);
     if (length == 0 || length > 64) return kIOReturnBadArgument;
 
-    os_log(OS_LOG_DEFAULT, "PhantomKeyHIDDevice: received %llu byte output report", length);
-    return kIOReturnSuccess;
+    if (!ivars || !ivars->activeClient) {
+        // No host app connected — drop the report so the HID stack gets a
+        // clean result, but don't error out (browsers retry).
+        os_log(OS_LOG_DEFAULT, "PhantomKeyHIDDevice: setReport dropped, no client");
+        return kIOReturnSuccess;
+    }
+
+    // Map the memory descriptor to read the report bytes, then hand them to
+    // the connected user client via its async completion.
+    uint64_t address = 0;
+    uint64_t mappedLength = 0;
+    kern_return_t mapRet = report->Map(0, 0, 0, 0, &address, &mappedLength);
+    if (mapRet != kIOReturnSuccess || !address || mappedLength < length) {
+        os_log(OS_LOG_DEFAULT, "PhantomKeyHIDDevice: setReport map failed: 0x%x", mapRet);
+        return mapRet ? mapRet : kIOReturnVMError;
+    }
+
+    kern_return_t ret = ivars->activeClient->deliverSetReport(
+        (const uint8_t *)address, (uint32_t)length);
+    if (ret != kIOReturnSuccess) {
+        os_log(OS_LOG_DEFAULT, "PhantomKeyHIDDevice: deliverSetReport failed: 0x%x", ret);
+    }
+    return ret;
+}
+
+void PhantomKeyHIDDevice::setUserClient(PhantomKeyHIDUserClient * client)
+{
+    if (ivars) {
+        ivars->activeClient = client;
+    }
 }
 
 kern_return_t PhantomKeyHIDDevice::postReport(const uint8_t * reportData, uint32_t reportLength)
