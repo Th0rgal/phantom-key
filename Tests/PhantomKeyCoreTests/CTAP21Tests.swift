@@ -268,6 +268,11 @@ struct HMACSecretTests {
         #expect(valid == true)
     }
 
+    // AES-CBC roundtrip tests require CommonCrypto. On non-Apple platforms
+    // aesCBCEncrypt/Decrypt throw HMACSecretError.unsupportedPlatform — we
+    // still exercise the validation paths below, which return the same error
+    // type for invalid inputs, so those tests remain meaningful everywhere.
+#if canImport(CommonCrypto)
     @Test("AES-CBC encrypt/decrypt roundtrip for single salt")
     func aesCBCRoundtripSingleSalt() throws {
         let key = Data(repeating: 0xAA, count: 32)
@@ -331,6 +336,7 @@ struct HMACSecretTests {
         let decrypted = try aesCBCDecrypt(key: sharedSecret, iv: Data(iv), ciphertext: ciphertext)
         #expect(decrypted == outputs)
     }
+#endif
 
     @Test("AES-CBC rejects invalid key length")
     func aesCBCInvalidKeyLength() {
