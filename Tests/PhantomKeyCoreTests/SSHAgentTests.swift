@@ -5,7 +5,19 @@ import CryptoKit
 #else
 import Crypto
 #endif
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 @testable import PhantomKeyCore
+
+#if canImport(Glibc)
+// On Glibc, SOCK_STREAM is __socket_type (an enum); socket() expects Int32.
+private let sockStream = Int32(SOCK_STREAM.rawValue)
+#else
+private let sockStream = SOCK_STREAM
+#endif
 
 @Suite("SSH Agent")
 struct SSHAgentTests {
@@ -37,7 +49,7 @@ struct SSHAgentTests {
         defer { Task { await agent.stop() } }
 
         // Connect to the agent socket
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        let fd = socket(AF_UNIX, sockStream, 0)
         #expect(fd >= 0)
         defer { close(fd) }
 
@@ -97,7 +109,7 @@ struct SSHAgentTests {
         defer { Task { await agent.stop() } }
 
         // Connect
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        let fd = socket(AF_UNIX, sockStream, 0)
         #expect(fd >= 0)
         defer { close(fd) }
 
