@@ -8,3 +8,7 @@ DerivedData/
 *.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 macOS/.build/
 iOS/.build/
+/build/
+iOS/build/
+.claude/
+prompt.md
