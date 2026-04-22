@@ -16,6 +16,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     #if canImport(SystemExtensions)
     private var extensionActivator: SystemExtensionActivator?
     #endif
+    #if canImport(IOKit)
+    private var hidPipeline: HIDPipeline?
+    #endif
 
     static func main() {
         let app = NSApplication.shared
@@ -26,13 +29,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenuBar()
-        bridgeController = BridgeController()
-        bridgeController?.start()
+        let bridge = BridgeController()
+        bridgeController = bridge
+        bridge.start()
 
         // Activate the DriverKit system extension
         #if canImport(SystemExtensions)
         extensionActivator = SystemExtensionActivator()
         extensionActivator?.activate()
+        #endif
+
+        // Connect to the driver and start pumping CTAP HID traffic between
+        // browsers and the paired iPhone.
+        #if canImport(IOKit)
+        let pipeline = HIDPipeline(bridge: bridge)
+        hidPipeline = pipeline
+        pipeline.start()
         #endif
     }
 

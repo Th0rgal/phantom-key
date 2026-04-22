@@ -1,4 +1,4 @@
-#if canImport(DriverKit) || canImport(HIDDriverKit)
+#if canImport(IOKit)
 import Foundation
 import PhantomKeyCore
 

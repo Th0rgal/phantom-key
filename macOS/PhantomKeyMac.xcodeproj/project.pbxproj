@@ -13,6 +13,7 @@
 		1DFB91DB56846B73FCB9306C /* PhantomKeyHIDDevice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF8839539191A37BDE68FCE8 /* PhantomKeyHIDDevice.cpp */; };
 		325AB5D6DF0372358632B41B /* PhantomKeyDriver.dext in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = C6D85041BE95D7BC0B515E78 /* PhantomKeyDriver.dext */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3CE704CB58BFE6FD897B4B66 /* DriverClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91BDC634B5DF5E290B745C2 /* DriverClient.swift */; };
+		9E11F5A74B7D2A8E3C1F4D6B /* HIDPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BD4F98E37C1D5A6B8F2E91 /* HIDPipeline.swift */; };
 		3FEDCD666FE7EE56B4F09E4E /* HIDDriverKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21C05522785A2A544505E252 /* HIDDriverKit.framework */; };
 		8F4E9C1FF40A3D7BAE242AD6 /* PhantomKeyMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0029BF0CC6254B0ACD0BE886 /* PhantomKeyMacApp.swift */; };
 		A2EEA0878DE3E3C75D438F22 /* PhantomKeyHIDUserClient.iig in Sources */ = {isa = PBXBuildFile; fileRef = 8081E37E112CD1F36EB797DB /* PhantomKeyHIDUserClient.iig */; };
@@ -60,6 +61,7 @@
 		A440874F0F7114A650BA386C /* PhantomKeyHIDUserClient.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PhantomKeyHIDUserClient.cpp; sourceTree = "<group>"; };
 		AF8839539191A37BDE68FCE8 /* PhantomKeyHIDDevice.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PhantomKeyHIDDevice.cpp; sourceTree = "<group>"; };
 		C6D85041BE95D7BC0B515E78 /* PhantomKeyDriver.dext */ = {isa = PBXFileReference; explicitFileType = "wrapper.driver-extension"; includeInIndex = 0; path = PhantomKeyDriver.dext; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2BD4F98E37C1D5A6B8F2E91 /* HIDPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HIDPipeline.swift; sourceTree = "<group>"; };
 		E91BDC634B5DF5E290B745C2 /* DriverClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverClient.swift; sourceTree = "<group>"; };
 		F989284B6FCC11D595187863 /* BridgeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -89,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				E91BDC634B5DF5E290B745C2 /* DriverClient.swift */,
+				A2BD4F98E37C1D5A6B8F2E91 /* HIDPipeline.swift */,
 				8D4B464527C2D46E0B26C190 /* SystemExtensionActivator.swift */,
 				8DAB53656AD3A427B951CAE2 /* VirtualHIDDevice.swift */,
 			);
@@ -272,6 +275,7 @@
 			files = (
 				1A2C6DAED817A9D84C1B931F /* BridgeController.swift in Sources */,
 				3CE704CB58BFE6FD897B4B66 /* DriverClient.swift in Sources */,
+				9E11F5A74B7D2A8E3C1F4D6B /* HIDPipeline.swift in Sources */,
 				8F4E9C1FF40A3D7BAE242AD6 /* PhantomKeyMacApp.swift in Sources */,
 				C4BEC1B84DB36F2B6CC63909 /* SystemExtensionActivator.swift in Sources */,
 				C3EB758129FFCEFA3F6AE30C /* VirtualHIDDevice.swift in Sources */,
