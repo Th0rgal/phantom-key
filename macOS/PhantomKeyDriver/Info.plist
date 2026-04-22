@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>md.thomas.phantomkey.mac.driver</string>
+    <key>CFBundleName</key>
+    <string>PhantomKeyDriver</string>
+    <key>CFBundleDisplayName</key>
+    <string>PhantomKey FIDO2 HID Driver</string>
+    <key>CFBundlePackageType</key>
+    <string>DEXT</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleSupportedPlatforms</key>
+    <array>
+        <string>DriverKit</string>
+    </array>
+    <key>OSMinimumDriverKitVersion</key>
+    <string>21.0</string>
+    <key>OSBundleUsageDescription</key>
+    <string>PhantomKey virtual FIDO2 security key driver</string>
+    <key>IOKitPersonalities</key>
+    <dict>
+        <key>PhantomKeyHIDDevice</key>
+        <dict>
+            <key>CFBundleIdentifier</key>
+            <string>md.thomas.phantomkey.mac.driver</string>
+            <key>CFBundleIdentifierKernel</key>
+            <string>com.apple.kpi.iokit</string>
+            <key>IOClass</key>
+            <string>IOUserService</string>
+            <key>IOMatchCategory</key>
+            <string>md.thomas.phantomkey.mac.driver</string>
+            <key>IOProviderClass</key>
+            <string>IOUserResources</string>
+            <key>IOResourceMatch</key>
+            <string>IOKit</string>
+            <key>IOUserClass</key>
+            <string>PhantomKeyHIDDevice</string>
+            <key>IOUserServerName</key>
+            <string>md.thomas.phantomkey.mac.driver</string>
+            <key>UserClientProperties</key>
+            <dict>
+                <key>IOClass</key>
+                <string>IOUserUserClient</string>
+                <key>IOUserClass</key>
+                <string>PhantomKeyHIDUserClient</string>
+            </dict>
+        </dict>
+    </dict>
+</dict>
+</plist>

@@ -1,4 +1,4 @@
-#if canImport(DriverKit) || canImport(HIDDriverKit)
+#if canImport(IOKit)
 import Foundation
 import PhantomKeyCore
 
@@ -22,30 +22,87 @@ class VirtualHIDController {
     private let messageAssembler = HIDMessageAssembler()
     private var channelCounter: UInt32 = 1
 
+    // In-progress multi-packet message state
+    private var pendingChannelId: UInt32 = 0
+    private var pendingCommand: UInt8 = 0
+    private var pendingTotalLength: Int = 0
+    private var pendingData: Data = Data()
+    private var pendingNextSeq: UInt8 = 0
+
     init(bridge: BridgeController) {
         self.bridgeController = bridge
     }
 
     func handleHIDReport(_ report: Data) async throws -> [Data] {
-        guard let parsed = messageAssembler.parseInitPacket(report) else {
+        guard report.count >= 5 else { return [] }
+
+        // CTAPHID spec: high bit set on byte 4 means init packet, clear means continuation
+        if report[4] & 0x80 != 0 {
+            // Init packet — start a new message
+            guard let parsed = messageAssembler.parseInitPacket(report) else { return [] }
+
+            // Discard any in-progress partial message (even from a different channel)
+            pendingChannelId = parsed.channelId
+            pendingCommand = parsed.command
+            pendingTotalLength = parsed.totalLength
+            pendingData = parsed.payload
+            pendingNextSeq = 0
+
+            // If init payload already satisfies totalLength, process immediately
+            if pendingData.count >= pendingTotalLength {
+                return try await dispatchMessage(
+                    channelId: pendingChannelId,
+                    command: pendingCommand,
+                    payload: Data(pendingData.prefix(pendingTotalLength))
+                )
+            }
+
+            // Otherwise wait for continuation packets
+            return []
+
+        } else {
+            // Continuation packet
+            guard let cont = messageAssembler.parseContPacket(report) else { return [] }
+
+            // Ignore packets that don't belong to the current in-progress message
+            guard cont.channelId == pendingChannelId, cont.seq == pendingNextSeq else {
+                return []
+            }
+
+            pendingData.append(cont.payload)
+            pendingNextSeq += 1
+
+            if pendingData.count >= pendingTotalLength {
+                return try await dispatchMessage(
+                    channelId: pendingChannelId,
+                    command: pendingCommand,
+                    payload: Data(pendingData.prefix(pendingTotalLength))
+                )
+            }
+
+            // Still waiting for more continuation packets
             return []
         }
+    }
 
-        let command = parsed.command
+    private func dispatchMessage(channelId: UInt32, command: UInt8, payload: Data) async throws -> [Data] {
+        // Clear pending state
+        pendingChannelId = 0
+        pendingData = Data()
 
         if command == HIDCommandByte.initialize.rawValue {
-            return handleInit(channelId: parsed.channelId, payload: parsed.payload)
+            return handleInit(channelId: channelId, payload: payload)
         }
 
         if command == HIDCommandByte.cbor.rawValue {
-            return try await handleCBOR(channelId: parsed.channelId, payload: parsed.payload)
+            return try await handleCBOR(channelId: channelId, payload: payload)
         }
 
         if command == HIDCommandByte.ping.rawValue {
             return messageAssembler.buildResponse(
-                channelId: parsed.channelId,
+                channelId: channelId,
                 command: HIDCommandByte.ping.rawValue,
-                data: parsed.payload
+                data: payload
             )
         }
 
@@ -53,7 +110,7 @@ class VirtualHIDController {
             return []
         }
 
-        return buildErrorResponse(channelId: parsed.channelId, code: .invalidCommand)
+        return buildErrorResponse(channelId: channelId, code: .invalidCommand)
     }
 
     private func handleInit(channelId: UInt32, payload: Data) -> [Data] {

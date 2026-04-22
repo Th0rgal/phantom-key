@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 /// CTAP 2.1 authenticatorCredentialManagement command handler.
 /// Supports enumeration, deletion, and user info updates for discoverable credentials.

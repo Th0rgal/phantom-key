@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .library(name: "PhantomKeyCore", targets: ["PhantomKeyCore"]),
+        .executable(name: "phantomkey-agent", targets: ["phantomkey-agent"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.15.0"),
@@ -17,9 +18,14 @@ let package = Package(
         .target(
             name: "PhantomKeyCore",
             dependencies: [
-                .product(name: "Crypto", package: "swift-crypto"),
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux, .windows])),
             ],
             path: "Sources/PhantomKeyCore"
+        ),
+        .executableTarget(
+            name: "phantomkey-agent",
+            dependencies: ["PhantomKeyCore"],
+            path: "Sources/phantomkey-agent"
         ),
         .testTarget(
             name: "PhantomKeyCoreTests",

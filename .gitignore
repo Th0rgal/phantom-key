@@ -6,3 +6,9 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 *.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+macOS/.build/
+iOS/.build/
+/build/
+iOS/build/
+.claude/
+prompt.md

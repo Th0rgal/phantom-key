@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#else
 import Crypto
+#endif
 
 // MARK: - Noise NK Handshake
 
@@ -23,10 +27,11 @@ public struct NoiseNK: Sendable {
     /// Perform the initiator side of the NK handshake (Mac).
     /// - Parameters:
     ///   - responderStaticPublic: The responder's known static X25519 public key (32 bytes).
-    /// - Returns: A `HandshakeResult` containing the message to send and the derived cipher states.
+    /// - Returns: The handshake message to send and a `PendingInitiator` to finalize the handshake
+    ///   once the responder's reply is received via `initiatorFinalize`.
     public static func initiator(
         responderStaticPublic: Data
-    ) throws -> (message: Data, sendCipher: CipherState, receiveCipher: CipherState) {
+    ) throws -> (message: Data, pending: PendingInitiator) {
         let rs = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: responderStaticPublic)
 
         // Initialize symmetric state
@@ -44,26 +49,8 @@ public struct NoiseNK: Sendable {
         let sharedES = try e.sharedSecretFromKeyAgreement(with: rs)
         ss.mixKey(sharedES.withUnsafeBytes { Data($0) })
 
-        // Build message1: e.public (32 bytes)
-        let message1 = ephemeralPublic
-
-        // We need the responder's ephemeral to complete, so return partial state
-        // Actually for a two-message handshake, the initiator sends message1,
-        // then processes the responder's message2 to get final keys.
-
-        // Return a pending initiator that can process the response
-        _ = PendingInitiator(
-            ephemeralPrivate: e,
-            symmetricState: ss
-        )
-
-        // For the API, we split into two steps. But to keep the interface clean,
-        // we return the message and a continuation closure isn't Sendable-safe.
-        // Instead, return the pending state components needed.
-        // The caller will use NoiseNK.initiatorFinalize() with the response.
-
-        // Temporarily return placeholder ciphers — caller must call initiatorFinalize
-        return (message: Data(message1), sendCipher: CipherState(), receiveCipher: CipherState())
+        let pending = PendingInitiator(ephemeralPrivate: e, symmetricState: ss)
+        return (message: Data(ephemeralPublic), pending: pending)
     }
 
     /// Process the responder's reply and derive final cipher states (initiator side).
@@ -188,19 +175,18 @@ public struct SymmetricState: @unchecked Sendable {
 
         let outputData = output.withUnsafeBytes { Data($0) }
         chainingKey = Data(outputData.prefix(32))
-        // The temp key is mixed into the hash for key confirmation
-        let tempKey = Data(outputData.suffix(32))
-        mixHash(tempKey)
+        // temp_k = outputData[32...] — used to initialize cipher state (not mixed into hash)
     }
 
     /// Split the symmetric state into two CipherState objects.
     /// Returns (initiator-sends, responder-sends) cipher states.
     public mutating func split() -> (CipherState, CipherState) {
-        let ck = SymmetricKey(data: chainingKey)
+        // Noise spec: temp_k1, temp_k2 = HKDF(ck, zerolen, 2)
+        // ck is the salt, zerolen (empty bytes) is the IKM, no info string
         let output = HKDF<SHA256>.deriveKey(
-            inputKeyMaterial: ck,
-            salt: Data(),
-            info: Data("PhantomKey-split".utf8),
+            inputKeyMaterial: SymmetricKey(data: Data()),
+            salt: chainingKey,
+            info: Data(),
             outputByteCount: 64
         )
         let outputData = output.withUnsafeBytes { Data($0) }

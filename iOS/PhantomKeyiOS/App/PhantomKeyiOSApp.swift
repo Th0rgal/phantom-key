@@ -3,12 +3,39 @@ import SwiftUI
 
 @main
 struct PhantomKeyiOSApp: App {
-    @StateObject private var appState = AppState()
+    @StateObject private var appState: AppState = {
+        let mode = ProcessInfo.processInfo.environment["DEMO_MODE"] ?? ""
+        switch mode {
+        case "approval":
+            let state = AppState.demo()
+            state.pendingRequest = SigningRequest(
+                id: "req-1",
+                relyingPartyId: "devserver.internal",
+                relyingPartyName: "devserver.internal",
+                action: "SSH Authentication",
+                timestamp: Date()
+            )
+            return state
+        case "1", "dashboard":
+            return AppState.demo()
+        default:
+            return AppState()
+        }
+    }()
+
+    #if targetEnvironment(simulator)
+    private let signingServer = LoopbackSigningServer()
+    #endif
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .task {
+                    #if targetEnvironment(simulator)
+                    try? await signingServer.start()
+                    #endif
+                }
         }
     }
 }
@@ -18,6 +45,39 @@ class AppState: ObservableObject {
     @Published var isConnected = false
     @Published var credentials: [CredentialInfo] = []
     @Published var pendingRequest: SigningRequest?
+
+    static func demo() -> AppState {
+        let state = AppState()
+        state.isPaired = true
+        state.isConnected = true
+        state.credentials = [
+            CredentialInfo(
+                id: "cred-1",
+                relyingPartyName: "github.com",
+                userName: "thomas",
+                createdAt: Date().addingTimeInterval(-86400 * 30),
+                lastUsed: Date().addingTimeInterval(-3600),
+                signCount: 47
+            ),
+            CredentialInfo(
+                id: "cred-2",
+                relyingPartyName: "devserver.internal",
+                userName: "thomas@devserver",
+                createdAt: Date().addingTimeInterval(-86400 * 7),
+                lastUsed: Date(),
+                signCount: 12
+            ),
+            CredentialInfo(
+                id: "cred-3",
+                relyingPartyName: "gitlab.com",
+                userName: "thomas",
+                createdAt: Date().addingTimeInterval(-86400 * 14),
+                lastUsed: Date().addingTimeInterval(-86400),
+                signCount: 8
+            ),
+        ]
+        return state
+    }
 }
 
 struct CredentialInfo: Identifiable {
@@ -46,6 +106,13 @@ struct ContentView: View {
                 PairingScanView()
             } else {
                 MainDashboardView()
+                    .sheet(item: $appState.pendingRequest) { request in
+                        ApprovalSheetView(
+                            request: request,
+                            onApprove: { appState.pendingRequest = nil },
+                            onDeny: { appState.pendingRequest = nil }
+                        )
+                    }
             }
         }
     }
