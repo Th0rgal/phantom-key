@@ -7,6 +7,14 @@
     <true/>
     <key>com.apple.developer.driverkit.family.hid.device</key>
     <true/>
+    <key>com.apple.developer.driverkit.family.hid.eventservice</key>
+    <true/>
+    <key>com.apple.developer.driverkit.transport.hid</key>
+    <true/>
+    <key>com.apple.developer.driverkit.userclient-access</key>
+    <array>
+        <string>md.thomas.phantomkey.mac.driver</string>
+    </array>
     <key>com.apple.security.app-sandbox</key>
     <true/>
 </dict>
