@@ -10,6 +10,13 @@ import Darwin
 import Glibc
 #endif
 
+#if canImport(Glibc)
+// On Glibc, SOCK_STREAM is __socket_type (an enum); socket() expects Int32.
+private let sockStream = Int32(SOCK_STREAM.rawValue)
+#else
+private let sockStream = SOCK_STREAM
+#endif
+
 /// A simple TCP-based signing service for simulator testing.
 /// The iOS app runs the server; the SSH agent connects as a client.
 /// Protocol: 4-byte big-endian length prefix + Envelope (unencrypted, localhost only).
@@ -40,7 +47,7 @@ public enum LoopbackSigningService {
     // MARK: - Client: connect to signing service
 
     public static func connect(port: UInt16 = defaultPort) throws -> Int32 {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        let fd = socket(AF_INET, sockStream, 0)
         guard fd >= 0 else { throw TransportError.sendFailed("socket() failed") }
 
         var addr = sockaddr_in()
@@ -151,50 +158,6 @@ public enum LoopbackSigningService {
         let publicKey = try P256.Signing.PublicKey(rawRepresentation: rawKey)
 
         return (credId, publicKey)
-    }
-
-    // MARK: - Get Assertion via loopback
-
-    /// Request a signature from the iOS authenticator.
-    /// Returns (authenticatorData, signature DER).
-    public static func getAssertion(
-        fd: Int32,
-        rpId: String,
-        clientDataHash: Data,
-        credentialId: Data
-    ) throws -> (authData: Data, signature: Data) {
-        let payload = CBOREncoder().encode(.map([
-            (.unsignedInt(1), .textString(rpId)),
-            (.unsignedInt(2), .byteString(clientDataHash)),
-            (.unsignedInt(3), .array([
-                .map([
-                    (.textString("type"), .textString("public-key")),
-                    (.textString("id"), .byteString(credentialId)),
-                ]),
-            ])),
-        ]))
-
-        let request = Envelope(type: .getAssertionRequest, sequence: 0, payload: payload)
-        try sendMessage(fd, envelope: request)
-        let response = try receiveMessage(fd)
-        guard response.type == .getAssertionResponse else {
-            throw AuthenticatorError.signingFailed
-        }
-
-        let decoded = try CBORDecoder().decode(response.payload)
-        guard case .map(let pairs) = decoded else { throw AuthenticatorError.invalidRequest }
-
-        let authDataEntry = pairs.first { $0.0 == .unsignedInt(2) }
-        guard case .byteString(let authData) = authDataEntry?.1 else {
-            throw AuthenticatorError.invalidRequest
-        }
-
-        let sigEntry = pairs.first { $0.0 == .unsignedInt(3) }
-        guard case .byteString(let sig) = sigEntry?.1 else {
-            throw AuthenticatorError.invalidRequest
-        }
-
-        return (authData, sig)
     }
 
     // MARK: - Socket I/O

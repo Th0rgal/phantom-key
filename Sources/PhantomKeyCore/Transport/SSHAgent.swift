@@ -10,6 +10,13 @@ import Darwin
 import Glibc
 #endif
 
+#if canImport(Glibc)
+// On Glibc, SOCK_STREAM is __socket_type (an enum); socket() expects Int32.
+private let sockStream = Int32(SOCK_STREAM.rawValue)
+#else
+private let sockStream = SOCK_STREAM
+#endif
+
 // MARK: - SSH Agent Protocol Constants
 
 private enum SSHAgentMessage: UInt8 {
@@ -232,6 +239,15 @@ public struct SSHAgentKey: @unchecked Sendable {
         }
         return try P256.Signing.ECDSASignature(derRepresentation: sigDER)
     }
+
+    /// Close the delegated signing socket, waiting for any in-flight sign() to
+    /// finish so the FD isn't yanked out from under it.
+    func closeDelegatedConnection() {
+        guard let fd = signingFD, fd >= 0, let lock = signingLock else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        close(fd)
+    }
 }
 
 // MARK: - SSH Agent
@@ -267,12 +283,14 @@ public actor SSHAgent {
 
     /// Remove all keys. Closes any delegated signing file descriptors.
     public func removeAllKeys() {
-        for key in keys {
-            if let fd = key.signingFD, fd >= 0 {
-                close(fd)
-            }
-        }
+        // Detach keys from agent state first so no new sign() calls can start
+        // against them, then close each delegated FD under its own lock so we
+        // don't yank a socket out from under an in-flight sign().
+        let drained = keys
         keys.removeAll()
+        for key in drained {
+            key.closeDelegatedConnection()
+        }
     }
 
     /// Get the number of keys.
@@ -286,7 +304,7 @@ public actor SSHAgent {
         unlink(socketPath)
 
         // Create Unix domain socket
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        let fd = socket(AF_UNIX, sockStream, 0)
         guard fd >= 0 else { throw SSHAgentError.socketCreationFailed }
 
         var addr = sockaddr_un()
@@ -335,12 +353,11 @@ public actor SSHAgent {
             close(serverSocket)
             serverSocket = -1
         }
-        for key in keys {
-            if let fd = key.signingFD, fd >= 0 {
-                close(fd)
-            }
-        }
+        let drained = keys
         keys.removeAll()
+        for key in drained {
+            key.closeDelegatedConnection()
+        }
         unlink(socketPath)
     }
 
